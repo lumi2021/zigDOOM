@@ -1,0 +1,1 @@
+pub const skills = @import("doom_skills.zig").dskills;
