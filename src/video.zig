@@ -112,7 +112,8 @@ fn draw_frame(win: Window) void {
     const img = vx.transmitImage(alloc, tty.anyWriter(), &image, .rgb) catch unreachable;
 
     // Image size measured in cells
-    const cell_size = img.cellSize(win) catch unreachable;
+    const cell_size = img.cellSize(win)
+        catch |err| std.debug.print("Error: {s}\n", .{@errorName(err)});
 
     const x_pix: f32 = @floatFromInt(win.screen.width_pix);
     const y_pix: f32 = @floatFromInt(win.screen.height_pix);

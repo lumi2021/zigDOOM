@@ -11,5 +11,6 @@ pub fn init() void {
 }
 
 pub fn dAdd_file(path: []u8) void {
-    wad_files.append(path) catch unreachable;
+    wad_files.append(path)
+        catch |err| std.debug.print("Error: {s}\n", .{@errorName(err)});
 }

@@ -58,11 +58,16 @@ pub fn dMain() !void {
     try dsrc.sys.video.video_init();
 
     std.debug.print("M_LoadDefaults: Load system defaults.\n", .{});
-    // m_loaddefaults()
+    try dsrc.sys.misc.load_defaults();
+
     std.debug.print("Z_Init: Init zone memory allocation daemon. \n", .{});
-    // z_init()
+    try dsrc.sys.zone.init();
+
     std.debug.print("W_Init: Init WADfiles.\n", .{});
-    //w_initmultiplefiles()
+    try dsrc.wad.init_wads();
+
+    // to make sure nothing goes wrong
+    std.debug.print("dmain.zig ends here!\n", .{});
 }
 
 // https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/d_main.c#L722
