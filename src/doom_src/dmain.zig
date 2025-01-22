@@ -54,20 +54,87 @@ pub fn dMain() !void {
     // TODO handle flag -warp
 
     // Initialize systems
-    std.debug.print("V_Init: allocate screens.\n", .{});
-    try dsrc.sys.video.video_init();
+    root.print_log("V_Init: allocate screens.\n", .{});
+    try dsrc.v.video.video_init();
 
-    std.debug.print("M_LoadDefaults: Load system defaults.\n", .{});
-    try dsrc.sys.misc.load_defaults();
+    root.print_log("M_LoadDefaults: Load system defaults.\n", .{});
+    try dsrc.m.misc.load_defaults();
 
-    std.debug.print("Z_Init: Init zone memory allocation daemon. \n", .{});
-    try dsrc.sys.zone.init();
+    root.print_log("Z_Init: Init zone memory allocation daemon. \n", .{});
+    try dsrc.z.zone.init();
 
-    std.debug.print("W_Init: Init WADfiles.\n", .{});
-    try dsrc.wad.init_wads();
+    root.print_log("W_Init: Init WADfiles.\n", .{});
+    try dsrc.w.wad.init_wads();
+
+    // check for -file in shareware
+    // TODO https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/d_main.c#L1025-L1047
+
+    if (dsrc.gamestate.modified_game) {
+        std.debug.print(
+        \\===========================================================================
+	    \\ ATTENTION:  This version of DOOM has been modified.  If you would like to
+	    \\get a copy of the original game, call 1-800-IDGAMES or see the readme file.
+	    \\        You will not receive technical support for modified games.
+	    \\                       press enter to continue
+	    \\===========================================================================
+        \\
+        , .{});
+        _ = try std.io.getStdIn().reader().readByte();
+    }
+
+    switch (game_state.gamemode) {
+        .shareware,
+        .indetermined => {
+            std.debug.print(
+            \\===========================================================================
+            \\                                Shareware!
+            \\===========================================================================
+            \\
+            , .{});
+        },
+
+        .commecial,
+        .retail,
+        .registered => {
+            std.debug.print(
+            \\===========================================================================
+            \\               Commercial product - do not distribute!\n"
+	        \\         Please report software piracy to the SPA: 1-800-388-PIR8\n"
+            \\===========================================================================
+            \\
+            , .{});
+        },
+
+        // else => Ouch. 
+    }
+
+    // Initialize more systems bruh
+    root.print_log("M_Init: Init miscellaneous info.\n", .{});
+    dsrc.m.menu.init();
+
+    root.print_log("R_Init: Init DOOM refresh daemon - ", .{});
+    //R_Init ();
+
+    root.print_log("\nP_Init: Init Playloop state.\n", .{});
+    //P_Init ();
+
+    root.print_log("I_Init: Setting up machine state.\n", .{});
+    //I_Init ();
+
+    root.print_log("D_CheckNetGame: Checking network game status.\n", .{});
+    //D_CheckNetGame ();
+
+    root.print_log("S_Init: Setting up sound.\n", .{});
+    //S_Init (snd_SfxVolume /* *8 */, snd_MusicVolume /* *8*/ );
+
+    root.print_log("HU_Init: Setting up heads up display.\n", .{});
+    //HU_Init ();
+
+    root.print_log("ST_Init: Init status bar.\n", .{});
+    //ST_Init ();
 
     // to make sure nothing goes wrong
-    std.debug.print("dmain.zig ends here!\n", .{});
+    root.print_dbg("dmain.zig ends here!\n", .{});
 }
 
 // https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/d_main.c#L722
@@ -77,7 +144,7 @@ fn find_response_fine() !void {
 
     if (found_path) |path| {
         const p = try std.fs.realpathAlloc(alloc.*, path);
-        std.debug.print("path found: {s}\n", .{p});
+        root.print_dbg("path found: {s}\n", .{p});
 
         const handle = try std.fs.openFileAbsolute(p, .{ .mode = .read_only });
         const size: usize = switch (builtin.os.tag) {
@@ -85,18 +152,18 @@ fn find_response_fine() !void {
             else => @panic("OS not supported!"),
         };
 
-        std.debug.print("{s} ({} bytes)\n", .{ p, size });
+        root.print_dbg("{s} ({} bytes)\n", .{ p, size });
 
-        std.debug.print("allocating args file...\n", .{});
+        root.print_dbg("allocating args file...\n", .{});
         const file = try handle.readToEndAlloc(alloc.*, size);
         
         var argslist = std.ArrayList([:0]u8).init(alloc.*);
 
-        std.debug.print("spliting args file...\n", .{});
+        root.print_dbg("spliting args file...\n", .{});
         var args_iterator = std.mem.splitSequence(u8, file, " ");
         while (args_iterator.next()) |arg| try argslist.append(@constCast(@ptrCast(arg)));
 
-        std.debug.print("replacing args...\n", .{});
+        root.print_dbg("replacing args...\n", .{});
         utils.args_handler.set_args(try argslist.toOwnedSlice());
     }
 }

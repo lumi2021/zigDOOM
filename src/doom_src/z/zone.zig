@@ -61,6 +61,6 @@ pub fn init() !void {
 //    https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/i_system.c#L76
 pub fn InitZoneBase() []u8 {
     const size: usize = mb_used * 1024 * 1024;
-    std.debug.print("Allocating {} MiB ({} bytes)\n", .{mb_used, size});
+    root.print_dbg("Allocating {} MiB ({} bytes)\n", .{mb_used, size});
     return alloc.alloc(u8, size) catch unreachable;
 }

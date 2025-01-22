@@ -6,6 +6,8 @@ const resourses = dstc.resources;
 
 const alloc = root.allocator;
 
+const FileLumpList = std.ArrayList(FileLump);
+
 var numlumps: i32 = 0;
 var lumpinfo: []LumpInfo = undefined;
 
@@ -29,8 +31,6 @@ const WadInfo = extern struct {
     infotableofs: i32,
 };
 
-const FileLumpList = std.ArrayList(FileLump);
-
 pub fn init_wads() !void {
 
     const filepaths = dstc.resources.wad_files;
@@ -39,6 +39,7 @@ pub fn init_wads() !void {
         add_file(i)
             catch |err| std.debug.print("Error: {s}\n", .{@errorName(err)});
     }
+    root.print_dbg("{} lumps loaded!\n", .{lumpinfo.len});
 }
 
 fn add_file(filename: []u8) !void {
@@ -58,7 +59,7 @@ fn add_file(filename: []u8) !void {
 
         const handle = try std.fs.openFileAbsolute(path, .{ .mode = .read_only });
 
-        std.debug.print("Adding file {s}\n", .{path});
+        root.print_log("Adding file {s}\n", .{path});
 
         var fileInfo = FileLumpList.init(alloc.*);
 
@@ -87,7 +88,7 @@ fn add_file(filename: []u8) !void {
             force_endianness(i32, &header.infotableofs);
             force_endianness(i32,&header.infotableofs);
 
-            std.debug.print("{s}: {} lumps\n", .{header.identification, header.numlumps});
+            root.print_dbg("{s}: {} lumps\n", .{header.identification, header.numlumps});
 
             const lumps = try alloc.alloc(FileLump, @intCast(header.numlumps));
             const lumpsbuf = @as([*]u8, @ptrCast(@alignCast(lumps.ptr)))[0..(lumps.len * @sizeOf(FileLump))];
@@ -95,7 +96,7 @@ fn add_file(filename: []u8) !void {
             try handle.seekTo(@intCast(header.infotableofs));
             _ = try handle.read(lumpsbuf);
             
-            std.debug.print("Parsed {} lumps\n", .{lumps.len});
+            root.print_dbg("Parsed {} lumps\n", .{lumps.len});
 
             try fileInfo.appendSlice(lumps);
         }
@@ -106,8 +107,6 @@ fn add_file(filename: []u8) !void {
 
         for (0..fileInfo.items.len, fileInfo.items) |i, lump| {
 
-            std.debug.print("{s} ", .{lump.name});
-
             lumpinfo[i].handle = savehanlde;
             lumpinfo[i].position = lump.filepos;
             lumpinfo[i].size = lump.size;
@@ -115,9 +114,11 @@ fn add_file(filename: []u8) !void {
 
         }
 
+        if (reloadname == null) handle.close();
+
     }
     else {
-        std.debug.print("Cannot open file {s}\n", .{filename});
+        root.print_log("Cannot open file {s}\n", .{filename});
         return error.FileNotFound;
     }
 

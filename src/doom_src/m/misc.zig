@@ -78,7 +78,7 @@ pub fn load_defaults() !void {
 
         handle.close();
     }
-    else std.debug.print("File not found!\n", .{});
+    else std.debug.print("Default file not found!\n", .{});
 }
 
 pub fn save_defualts() !void {
