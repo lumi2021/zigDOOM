@@ -2,6 +2,7 @@
 //     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/m_misc.c#L340
 const std = @import("std");
 const root = @import("root");
+const gstate = root.doom_src.gamestate;
 
 const alloc = root.allocator;
 
@@ -13,36 +14,33 @@ const Default = struct {
     untranslated: i32  = 0,  // lousy hack
 };
 
-// settings (or defaults)
-var mouseSensitivity: i32 = undefined;
-
-var sound_sfxVolume: i32 = undefined;
-var sound_musicVolume: i32 = undefined;
-
-var showMessages: i32 = undefined;
-
 var numdefaults: i32 = undefined;
 
-const defaults: [4]Default = .{
-    Default{
+const defaults = [_]Default{
+    .{
         .name = "mouse_sensitivity",
-        .location = &mouseSensitivity, 
+        .location = &gstate.mouseSensitivity, 
         .defaultValue = 5,
     },
     .{
         .name = "sfx_volume",
-        .location = &sound_sfxVolume, 
+        .location = &gstate.sound_sfxVolume, 
         .defaultValue = 8,
     },
     .{
         .name = "music_volume",
-        .location = &sound_musicVolume, 
+        .location = &gstate.sound_musicVolume, 
         .defaultValue = 8,
     },
     .{
         .name = "show_messages",
-        .location = &showMessages, 
+        .location = &gstate.showMessages, 
         .defaultValue = 1,
+    },
+    .{
+        .name = "screenblocks",
+        .location = &gstate.screenblocks, 
+        .defaultValue = 9,
     },
 
     // TODO more settings

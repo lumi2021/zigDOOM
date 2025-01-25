@@ -1,18 +1,11 @@
 const std = @import("std");
 const root = @import("root");
+const enums = root.doom_src.enums;
 
 const alloc = root.allocator;
 
 const zoneid = 0x1d4a11;
-
-const tag_static = 1;
-const tag_sound = 2;
-const tag_music = 3;
-const tag_david = 4; // anything else Dave wants static
-const tag_level = 50;
-const tag_levspec = 51;
-const tag_purgelevel = 100;
-const tag_cache = 101;
+const minfragment = 64;
 
 const mb_used: usize = 6;
 var mainzone: *Memzone = undefined;
@@ -25,7 +18,7 @@ pub const Memzone = struct {
 pub const Memblock = struct { 
     size: i32,
     user: ?**anyopaque,
-    tag: i32,
+    tag: enums.ZoneTags,
     id: i32,
 
     next: *Memblock,
@@ -47,7 +40,7 @@ pub fn init() !void {
     mainzone.blocklist.next = block;
 
     mainzone.blocklist.user = @ptrCast(&mainzone);
-    mainzone.blocklist.tag = tag_static;
+    mainzone.blocklist.tag = .static;
     mainzone.rover = block;
 
     block.prev = &mainzone.blocklist;
@@ -63,4 +56,126 @@ pub fn InitZoneBase() []u8 {
     const size: usize = mb_used * 1024 * 1024;
     root.print_dbg("Allocating {} MiB ({} bytes)\n", .{mb_used, size});
     return alloc.alloc(u8, size) catch unreachable;
+}
+
+// Implementation of
+//    https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/z_zone.c#L184
+pub fn malloc(size: i32, tag: enums.ZoneTags, user: ?**anyopaque) *anyopaque {
+    std.debug.print("allocating {} bytes...\n", .{size});
+
+    const _size = (size + 3) & ~@as(i32, 3)
+    + @sizeOf(Memblock); // account for size of block header
+
+    // scan through the block list,
+    // looking for the first free block
+    // of sufficient size,
+    // throwing out any purgable blocks along the way.
+
+    // if there is a free block behind the rover,
+    //  back up over them
+    var base: *Memblock = mainzone.rover;
+    if (base.prev.user == null) base = base.prev;
+
+    var rover = base;
+    const start = rover.prev;
+
+    while (base.user == null or base.size < _size) {
+        if (rover == start) {
+            std.debug.print("Failed to allocate {} bytes", .{_size});
+            @panic("Memory Allocation Fault");
+        }
+
+        if (rover.user == null) {
+            if (@intFromEnum(rover.tag) < @intFromEnum(enums.ZoneTags.purgelevel)) {
+                rover = rover.next;
+                base = rover;
+            } else {
+                // free the rover block (adding the size to base)
+
+                base = base.prev;
+                free_block(rover);
+                base = base.next;
+                rover = base.next;
+            }
+        } else {
+            rover = rover.next;
+        }
+    }
+
+    const extra = base.size - size;
+    if (extra > minfragment) {
+        // there will be a free fragment after the allocated block
+        const newblock: *Memblock = @ptrFromInt(@intFromPtr(base) + @as(usize, @intCast(size)));
+        newblock.size = extra;
+
+        // NULL indicates free block.
+        newblock.user = null;
+        newblock.tag = @enumFromInt(0);
+        newblock.prev = base;
+        newblock.next = base.next;
+        newblock.next.prev = newblock;
+
+        base.next = newblock;
+        base.size = size;
+    }
+
+    if (user != null) {
+        base.user = user.?;
+        user.?.* = @ptrFromInt(@intFromPtr(base) + @sizeOf(Memblock));
+    } else {
+        if (@intFromEnum(tag) > @intFromEnum(enums.ZoneTags.purgelevel))
+            @panic("A user is required for purgable blocks");
+        
+        // mark as in use, but unowned	
+        base.user = @ptrFromInt(@alignOf(usize));		
+    }
+
+    base.tag = tag;
+
+    // next allocation will start looking here
+    mainzone.rover = base.next;
+
+    base.id = zoneid;
+
+    return @ptrFromInt(@intFromPtr(base) + @sizeOf(Memblock));
+}
+
+// Implementation of
+//    https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/z_zone.c#L122
+fn free(ptr: *anyopaque) void {
+    const block: *Memblock = @ptrFromInt(@intFromPtr(ptr) - @sizeOf(Memblock));
+    if (block.id != zoneid) @panic("Freed a block without ZONEID");
+    free_block(block);
+}
+fn free_block(_block: *Memblock) void {
+
+    var block = _block;
+
+    block.user = null;
+    block.tag = @enumFromInt(0);
+    block.id = 0;
+
+    var other = block.prev;
+
+    if (other.user == null) {
+        other.size += block.size;
+        other.next = block.next;
+        other.next.prev = other;
+
+        if (block == mainzone.rover)
+            mainzone.rover = other;
+        
+        block = other;
+    }
+
+    other = block.next;
+    if (other.user == null) {
+        block.size += other.size;
+        block.next = other.next;
+        block.next.prev = block;
+
+        if (other == mainzone.rover)
+            mainzone.rover = block;
+    }
+
 }

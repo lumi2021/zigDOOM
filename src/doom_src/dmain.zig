@@ -113,7 +113,7 @@ pub fn dMain() !void {
     dsrc.m.menu.init();
 
     root.print_log("R_Init: Init DOOM refresh daemon - ", .{});
-    //R_Init ();
+    dsrc.r.main.init();
 
     root.print_log("\nP_Init: Init Playloop state.\n", .{});
     //P_Init ();
