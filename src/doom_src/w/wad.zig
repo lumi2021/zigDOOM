@@ -11,10 +11,7 @@ const FileLumpList = std.ArrayList(FileLump);
 
 var lumpinfo: []LumpInfo = undefined;
 
-var reloadlump: i32 = undefined;
-var reloadname: ?[]u8 = undefined;
-
-var lumpCache: []?*[]u8 = undefined;
+var lumpCache: []?[]u8 = undefined;
 
 const FileLump = extern struct {
     filepos: i32,
@@ -34,6 +31,8 @@ const WadInfo = extern struct {
     infotableofs: i32,
 };
 
+const force_endianness = root.utils.force_endianness;
+
 pub fn init_wads() !void {
 
     const filepaths = dstc.resources.wad_files;
@@ -43,22 +42,19 @@ pub fn init_wads() !void {
             catch |err| std.debug.print("Error: {s}\n", .{@errorName(err)});
     }
 
-    lumpCache = try alloc.alloc(?*[]u8, lumpinfo.len);
+    lumpCache = try alloc.alloc(?[]u8, lumpinfo.len);
+    for (0.., lumpCache) |i, _| lumpCache[i] = null;
 
     root.print_dbg("{} lumps loaded!\n", .{lumpinfo.len});
 }
 
 fn add_file(filename: []u8) !void {
-    var fnaame = filename;
-
     // open the file and add to directory
 
+    const fnaame = filename;
+
     // handle reload indicator
-    if (filename[0] == '~') {
-        fnaame = filename[1..];
-        reloadname = fnaame;
-        reloadlump = @intCast(lumpinfo.len);
-    }
+    // TODO reload indicator
 
     const p: ?[]u8 = std.fs.realpathAlloc(alloc.*, fnaame) catch null;
     if (p) |path| {
@@ -109,7 +105,7 @@ fn add_file(filename: []u8) !void {
 
         // fill in lumpinfo
         lumpinfo = try alloc.realloc(lumpinfo, fileInfo.items.len);
-        const savehanlde: ?std.fs.File = if (reloadname == null) null else handle;
+        const savehanlde: ?std.fs.File = handle; // FIXME reload indicator
 
         for (0..fileInfo.items.len, fileInfo.items) |i, lump| {
 
@@ -123,8 +119,7 @@ fn add_file(filename: []u8) !void {
 
         }
 
-        if (reloadname == null) handle.close();
-
+        // if (reloadname == null) handle.close(); // FIXME reload indicator
     }
     else {
         root.print_log("Cannot open file {s}\n", .{filename});
@@ -155,45 +150,60 @@ fn extract_file_base(path: []u8, dest: []u8) void {
 }
 
 
-pub fn cache_lump_name(name: []u8, tag: enums.ZoneTags) []u8 {
+pub fn cache_lump_name(name: anytype, tag: enums.ZoneTags) []u8 {
     return cache_lump_num(get_num_for_name(name), tag);
 }
 fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
     if (index > lumpinfo.len) @panic("index out of bounds!");
 
     if (lumpCache[@intCast(index)] == null) {
+        const size = lumpinfo[@intCast(index)].size;
+
         const ptr = dstc.zone.malloc(
-            lumpinfo[@intCast(index)].size,
+            size,
             tag,
             @ptrCast(&lumpCache[@intCast(index)])
         );
-        read_lump(index, ptr);
+        const buf: []u8 = @as([*]u8, @ptrCast(ptr))[0..@intCast(size)];
+        lumpCache[@intCast(index)] = buf;
+
+        read_lump(index, buf) catch |err| {
+            std.debug.print("Error: {s}\n", .{@errorName(err)});
+            @panic("Could not read lump!");
+        
+        };
+
     }
 
-    return undefined;
+    return lumpCache[@intCast(index)].?;
 }
 
-fn read_lump(index: i32, dest: *anyopaque) void {
+fn read_lump(index: i32, dest: []u8) !void {
     if (index > lumpinfo.len) @panic("index out of bounds!");
 
     const l = lumpinfo[@intCast(index)];
-    const d: *[]u8 = @alignCast(@ptrCast(dest));
 
     if (l.handle) |handle| {
 
-        handle.seekTo(@intCast(l.position)) catch unreachable;
-        const c = handle.readAll(d.*) catch unreachable;
-        _ = c;
+        try handle.seekTo(@intCast(l.position));
+        _ = try handle.readAll(dest);
 
     } else { @panic("Cannot access data source file!"); }
-
+}
+pub fn lump_length(index: i32) i32 {
+    if (index > lumpinfo.len) @panic("index out of bounds!");
+    return lumpinfo[@intCast(index)].size;
 }
 
 
-fn get_num_for_name(name: []u8) i32 {
-    return check_num_for_name(name) catch @panic("Error! lump not found!");
+pub fn get_num_for_name(name: anytype) i32 {
+    return concrete_check_num_for_name(@ptrCast(@alignCast(@constCast(name))));
 }
-fn check_num_for_name(name: []u8) !i32 {
+pub fn check_num_for_name(name: anytype) i32 {
+    return concrete_check_num_for_name(@ptrCast(@alignCast(@constCast(name))));
+}
+
+fn concrete_check_num_for_name(name: []u8) i32 {
     var name8: [9]u8 = std.mem.zeroes([9]u8);
     const constname: []const u8 = @ptrCast(name);
     _ = std.ascii.upperString(&name8, constname);
@@ -201,22 +211,15 @@ fn check_num_for_name(name: []u8) !i32 {
     const v1: u32 = @bitCast(name8[0..4].*);
     const v2: u32 = @bitCast(name8[4..8].*);
 
-    var i = lumpinfo.len - 1;
+    var i: i32 = @intCast(lumpinfo.len - 1);
 
     // scan backwards so patch lump files take precedence
     while (i >= 0) : (i -= 1) {
-        if (lumpinfo[i].name32[0] == v1
-        and lumpinfo[i].name32[1] == v2)
-            return @intCast(i);
+        if (lumpinfo[@intCast(i)].name32[0] == v1
+        and lumpinfo[@intCast(i)].name32[1] == v2)
+            return i;
     }
 
     // TFB. Not found.
-    return error.lumpNotFound;
-}
-
-
-inline fn force_endianness(T: type, value: *T) void {
-    comptime if (builtin.cpu.arch.endian() == .big) {
-        std.mem.byteSwapAllFields(T, value);
-    };
+    return -1;
 }
