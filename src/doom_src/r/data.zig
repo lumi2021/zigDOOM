@@ -7,6 +7,32 @@ const z = root.doom_src.z;
 const print = std.debug.print;
 const force_endianness = root.utils.force_endianness;
 
+const MapPatch = struct {
+    originx: i16,
+    originy: i16,
+    patch: i16,
+    stepdir: i16,
+    colormap: i16,
+};
+const MapTexture = struct {
+    name: [8]i8,
+    masked: bool,
+    width: i16,
+    height: i16,
+    //columndirectory: **anyopaque,	// OBSOLETE
+    patchcount: i16,
+
+};
+const Texture = struct {
+    name: [8]i8,
+    width: i16,
+    height: i16,
+    // All the patches[patchcount]
+    //  are drawn back to front into the cached texture.
+    patchcount: i16,
+    patches: [1]MapPatch
+};
+
 // R_InitData:
 //  Locates all the lumps
 //  that will be used by all views
@@ -38,8 +64,7 @@ fn init_textures() !void {
     var name: [9]u8 = undefined;
     name[8] = 0;
 
-    var i: usize = 0;
-    while (i < num_map_patches) : (i += 1) {
+    for(0..num_map_patches) |i| {
         const start = i * 8;
         const end = (i+1) * 8;
 
@@ -60,11 +85,8 @@ fn init_textures() !void {
     const num_textures1 = std.mem.readInt(u32, maptex[0..4], .little);
     var num_textures2: u32 = undefined;
 
-    const maxoff = w.wad.lump_length(w.wad.get_num_for_name("TEXTURE1"));
+    var maxoff = w.wad.lump_length(w.wad.get_num_for_name("TEXTURE1"));
     var maxoff2: i32 = undefined;
-
-    var directory = maptex;
-    directory.ptr = @ptrFromInt(@intFromPtr(directory.ptr) + 4);
 
     if (w.wad.check_num_for_name("TEXTURE2") != -1) {
         maptex2 =  w.wad.cache_lump_name("TEXTURE2", .static);
@@ -90,9 +112,39 @@ fn init_textures() !void {
 
     //	Really complex printing shit...
     const temp_1 = w.wad.get_num_for_name("S_START"); // P_???????
+    const temp_2 = w.wad.get_num_for_name("S_END") - 1;
+    const temp_3: usize = @intCast(@divTrunc(temp_2 - temp_1 + 63, 64) + @divTrunc(num_textures + 63, 64));
 
-    _ = temp_1;
-    _ = maxoff;
+    std.debug.print("[", .{});
+    for (0..temp_3) |_|
+        std.debug.print(" ", .{});
+    std.debug.print("         ]", .{});
+
+    for (0..temp_3) |_|
+        std.debug.print("\x08", .{});
+    std.debug.print("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08", .{});	
+
+    var directory = maptex;
+    directory.ptr = @ptrFromInt(@intFromPtr(directory.ptr) + 4);
+
+    for (0..@intCast(num_textures)) |i| {
+        if (i & 63 == 0) std.debug.print(".", .{});
+
+        if (i == num_textures1) {
+            maptex = maptex2.?;
+            maxoff = maxoff2.?;
+            directory.ptr = @ptrFromInt(@intFromPtr(directory.ptr) + 4);
+        }
+
+        const offset = @intFromPtr(directory.ptr);
+
+        if (offset > maxoff)
+            @panic("R_InitTextures: bad texture directory");
+        
+        const mtexture: MapTexture = @ptrFromInt(@intFromPtr(maptex) + offset);
+        
+        _ = mtexture;
+    }
 
     total_width = undefined;
     textures = undefined;
