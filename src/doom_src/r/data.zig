@@ -7,21 +7,27 @@ const z = root.doom_src.z;
 const print = std.debug.print;
 const force_endianness = root.utils.force_endianness;
 
-const MapPatch = struct {
+const MapPatch = extern struct {
     originx: i16,
     originy: i16,
     patch: i16,
     stepdir: i16,
     colormap: i16,
 };
-const MapTexture = struct {
+const MapTexture = extern struct {
     name: [8]i8,
     masked: bool,
     width: i16,
     height: i16,
-    //columndirectory: **anyopaque,	// OBSOLETE
+    columndirectory: **anyopaque, // OBSOLETE
     patchcount: i16,
+    patches: MapPatch
 
+};
+const TexPath = struct {
+    originx: i32,
+    originy: i32,
+    patch: i32
 };
 const Texture = struct {
     name: [8]i8,
@@ -32,6 +38,18 @@ const Texture = struct {
     patchcount: i16,
     patches: [1]MapPatch
 };
+
+const FRACBITS = 16;
+
+var textures: []*Texture = undefined;
+var texturecolumnlump: [][]i16 = undefined;
+var texturecolumnofs: [][]u16 = undefined;
+var texturecomposite: []i32 = undefined;
+var texturecompositesize: [][]u8 = undefined;
+var texturewidthmask: []i32 = undefined;
+var textureheight: []i32 = undefined;
+
+var total_width: i32 = 0;
 
 // R_InitData:
 //  Locates all the lumps
@@ -80,9 +98,9 @@ fn init_textures() !void {
 
     const maptex1 = w.wad.cache_lump_name("TEXTURE1", .static);
     var maptex2: ?[]u8 = undefined;
-    const maptex = maptex1;
+    var maptex: usize = @intFromPtr(maptex1.ptr);
 
-    const num_textures1 = std.mem.readInt(u32, maptex[0..4], .little);
+    const num_textures1 = std.mem.readInt(u32, maptex1[0..4], .little);
     var num_textures2: u32 = undefined;
 
     var maxoff = w.wad.lump_length(w.wad.get_num_for_name("TEXTURE1"));
@@ -100,17 +118,18 @@ fn init_textures() !void {
 
     const num_textures: i32 = @intCast(num_textures1 + num_textures2);
 
-    var textures: *[]u8 = @ptrCast(@alignCast(z.zone.malloc(num_textures * 4, .static, null)));
-    var texturecolumnlump: *[]u8 = @ptrCast(@alignCast(z.zone.malloc(num_textures * 4, .static, null)));
-    var texturecolumnofs: *[]u8 = @ptrCast(@alignCast(z.zone.malloc(num_textures * 4, .static, null)));
-    var texturecomposite: *[]u8 = @ptrCast(@alignCast(z.zone.malloc(num_textures * 4, .static, null)));
-    var texturecompositesize: *[]u8 = @ptrCast(@alignCast(z.zone.malloc(num_textures * 4, .static, null)));
-    var texturewidthmask: *[]u8 = @ptrCast(@alignCast(z.zone.malloc(num_textures * 4, .static, null)));
-    var textureheight: *[]u8 = @ptrCast(@alignCast(z.zone.malloc(num_textures * 4, .static, null)));
+    const _size_0 = num_textures * @sizeOf([]usize);
+    textures = @as([*]*Texture, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(num_textures * 4)];
+    texturecolumnlump    = @as([*][]i16, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(num_textures * 4)];
+    texturecolumnofs     = @as([*][]u16, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(num_textures * 4)];
+    texturecomposite     = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(num_textures * 4)];
+    texturecompositesize = @as([*][]u8, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(num_textures * 4)];
+    texturewidthmask     = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(num_textures * 4)];
+    textureheight        = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(num_textures * 4)];
 
-    var total_width: i32 = 0;
+    total_width = 0;
 
-    //	Really complex printing shit...
+    //  Really complex printing shit...
     const temp_1 = w.wad.get_num_for_name("S_START"); // P_???????
     const temp_2 = w.wad.get_num_for_name("S_END") - 1;
     const temp_3: usize = @intCast(@divTrunc(temp_2 - temp_1 + 63, 64) + @divTrunc(num_textures + 63, 64));
@@ -124,34 +143,67 @@ fn init_textures() !void {
         std.debug.print("\x08", .{});
     std.debug.print("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08", .{});	
 
-    var directory = maptex;
-    directory.ptr = @ptrFromInt(@intFromPtr(directory.ptr) + 4);
-
+    var directory_ptr: usize = maptex + 4;
     for (0..@intCast(num_textures)) |i| {
+        const directory: *MapTexture = @ptrFromInt(directory_ptr);
+
         if (i & 63 == 0) std.debug.print(".", .{});
 
         if (i == num_textures1) {
-            maptex = maptex2.?;
-            maxoff = maxoff2.?;
-            directory.ptr = @ptrFromInt(@intFromPtr(directory.ptr) + 4);
+            maptex = @intFromPtr(maptex2.?.ptr);
+            maxoff = maxoff2;
+            directory_ptr = @intCast(maptex + 4);
         }
 
-        const offset = @intFromPtr(directory.ptr);
+        const offset = @as(*i32, @ptrFromInt(@intFromPtr(directory))).*;
 
         if (offset > maxoff)
             @panic("R_InitTextures: bad texture directory");
         
-        const mtexture: MapTexture = @ptrFromInt(@intFromPtr(maptex) + offset);
+        const mtexture: *MapTexture = @ptrFromInt(maptex + @as(usize, @intCast(offset)));
         
-        _ = mtexture;
-    }
+        const size = @sizeOf(Texture) + @sizeOf(TexPath) * @as(i32, @intCast(mtexture.patchcount - 1));
+        var texture: *Texture = @ptrCast(@alignCast(z.zone.malloc(size, .static, null)));
 
-    total_width = undefined;
-    textures = undefined;
-    texturecolumnlump = undefined;
-    texturecolumnofs = undefined;
-    texturecomposite = undefined;
-    texturecompositesize = undefined;
-    texturewidthmask = undefined;
-    textureheight = undefined;
+        textures[i] = texture;
+
+        texture.width = mtexture.width;
+        texture.height = mtexture.height;
+        texture.patchcount = mtexture.patchcount;
+
+        @memcpy(&texture.name, &mtexture.name);
+
+        for (0..@intCast(texture.patchcount)) |j| {
+            std.debug.print("hit\n", .{});
+
+            const mpatch = &texture.patches[j];
+            const patch = &texture.patches[j];
+
+            std.debug.print("mpatch: ({}, {}), {} patches\n", .{mpatch.originx, mpatch.originy, mpatch.patch});
+
+            std.debug.print("hit\n", .{});
+
+            patch.originx = mpatch.originx;
+            patch.originy = mpatch.originy;
+            patch.patch = @intCast(patchlookup[@intCast(mpatch.patch)]);
+
+            std.debug.print("hit\n", .{});
+
+            if (patch.patch == -1) {
+                @panic("R_InitTextures: Missing patch in texture");
+            }
+        }
+
+        texturecolumnlump[i] = @as([*]i16, @ptrCast(@alignCast(z.zone.malloc(texture.width*2, .static, null))))[0..@intCast(texture.width*2)];
+        texturecolumnofs[i] = @as([*]u16, @ptrCast(@alignCast(z.zone.malloc(texture.width*2, .static, null))))[0..@intCast(texture.width*2)];
+
+        var j: i32 = 1;
+        while (j * 2 <= texture.width) j <<= 1;
+
+        texturewidthmask[i] = j-1;
+        textureheight[i] = std.math.shl(i32, texture.height, FRACBITS);
+
+        total_width += texture.width;
+        directory_ptr += 1;
+    }
 }
