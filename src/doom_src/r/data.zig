@@ -15,14 +15,13 @@ const MapPatch = extern struct {
     colormap: i16,
 };
 const MapTexture = extern struct {
-    name: [8]i8,
+    name: [8]u8,
     masked: bool,
     width: i16,
     height: i16,
     columndirectory: **anyopaque, // OBSOLETE
     patchcount: i16,
     patches: [1]MapPatch
-
 };
 const TexPath = struct {
     originx: i32,
@@ -30,7 +29,7 @@ const TexPath = struct {
     patch: i32
 };
 const Texture = struct {
-    name: [8]i8,
+    name: [8]u8,
     width: i16,
     height: i16,
     // All the patches[patchcount]
@@ -97,6 +96,7 @@ fn init_textures() !void {
     //  TEXTURE1 for shareware, plus TEXTURE2 for commercial.
 
     const maptex1 = w.wad.cache_lump_name("TEXTURE1", .static);
+    var maptex = @intFromPtr(maptex1.ptr);
     var maptex2: ?[]u8 = undefined;
 
     const num_textures1 = std.mem.readInt(u32, maptex1[0..4], .little);
@@ -142,5 +142,59 @@ fn init_textures() !void {
         std.debug.print("\x08", .{});
     std.debug.print("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08", .{});	
 
-    
+    var directory_ptr = maptex + 4;
+    for (0..@intCast(num_textures)) |i| {
+        
+        if ((i & 63) == 0) std.debug.print(".", .{});
+
+        if (i == num_textures1) {
+            // Start looking in second texture file.
+            maptex = @intFromPtr(maptex2.?.ptr);
+            maxoff = maxoff2;
+            directory_ptr = maptex + @sizeOf(usize);
+        }
+
+        const offset: usize = @intCast(@as(*i32, @ptrFromInt(directory_ptr)).*);
+
+        if (offset > maxoff)
+            @panic("R_InitTextures: bad texture directory");
+        
+        const mtexture: *align(1) MapTexture = @ptrFromInt(maptex + offset);
+        std.debug.print("{s: >8} {}x{}, {} patches\n", .{mtexture.name, mtexture.width, mtexture.height, mtexture.patchcount});
+
+        var texture: *Texture = @ptrCast(@alignCast(z.zone.malloc(
+            @sizeOf(Texture) + @sizeOf(TexPath) * (mtexture.patchcount - 1),
+            .static, null)));
+        textures[i] = texture;
+
+        texture.width = mtexture.width;
+        texture.height = mtexture.height;
+        texture.patchcount = mtexture.patchcount;
+        texture.name = mtexture.name;
+
+        if (texture.patchcount > 0) {
+            const mpatch_arr: [*]volatile MapPatch = @ptrCast(@alignCast(&mtexture.patches));
+            const patch_arr: [*]volatile MapPatch = @ptrCast(@alignCast(&texture.patches));
+            
+            for (0..@intCast(texture.patchcount)) |j| {
+                const mpatch = mpatch_arr[j];
+                var patch = patch_arr[j];
+
+                patch.originx = mpatch.originx;
+                patch.originy = mpatch.originy;
+                patch.patch = @intCast(patchlookup[@intCast(mpatch.patch)]);
+
+                if (patch.patch == -1)
+                {
+                    std.debug.print("R_InitTextures: Missing patch in texture {s}", .{texture.name});
+                    @panic("R_InitTextures: Missing patch in texture");
+                }
+
+            }
+        }
+
+        directory_ptr += 4;
+    }
+
+    maxoff = undefined;
 }

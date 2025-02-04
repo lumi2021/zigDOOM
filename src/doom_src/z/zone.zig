@@ -53,8 +53,10 @@ pub fn init() !void {
 //    https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/i_system.c#L76
 pub fn InitZoneBase() []u8 {
     const size: usize = mb_used * 1024 * 1024;
-    root.print_dbg("Allocating {} MiB ({} bytes)\n", .{mb_used, size});
-    return alloc.alloc(u8, size) catch unreachable;
+    root.print_dbg("Allocating {} MiB\n", .{mb_used});
+    const buffer = alloc.alloc(u8, size) catch unreachable;
+    std.debug.print("heap: {x}..{x}, {} bytes\n", .{@intFromPtr(buffer.ptr), @intFromPtr(buffer.ptr) + size, size});
+    return buffer;
 }
 
 // Implementation of
@@ -65,7 +67,7 @@ pub fn malloc(size: i32, tag: enums.ZoneTags, user: ?**anyopaque) *anyopaque {
     const _size: i32 = ((size + alig) & ~alig)
     + @sizeOf(Memblock); // account for size of block header
 
-    root.print_log("allocating {} bytes ({} requested)...\n", .{_size, size});
+    //root.print_log("allocating {} bytes ({} requested)...\n", .{_size, size});
 
     // scan through the block list,
     // looking for the first free block
@@ -94,7 +96,6 @@ pub fn malloc(size: i32, tag: enums.ZoneTags, user: ?**anyopaque) *anyopaque {
                 base = rover;
             } else {
                 // free the rover block (adding the size to base)
-
                 base = base.prev;
                 free_block(rover);
                 base = base.next;
@@ -157,7 +158,7 @@ pub fn free(ptr: *anyopaque) void {
 fn free_block(_block: *Memblock) void {
 
     var block = _block;
-    std.debug.print("freeing {} bytes... ({s})\n", .{block.size, @tagName(block.tag)});
+    //std.debug.print("freeing {} bytes... ({s})\n", .{block.size, @tagName(block.tag)});
 
     block.user = null;
     block.tag = @enumFromInt(0);
