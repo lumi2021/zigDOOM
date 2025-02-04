@@ -21,7 +21,7 @@ const MapTexture = extern struct {
     height: i16,
     columndirectory: **anyopaque, // OBSOLETE
     patchcount: i16,
-    patches: MapPatch
+    patches: [1]MapPatch
 
 };
 const TexPath = struct {
@@ -98,7 +98,6 @@ fn init_textures() !void {
 
     const maptex1 = w.wad.cache_lump_name("TEXTURE1", .static);
     var maptex2: ?[]u8 = undefined;
-    var maptex: usize = @intFromPtr(maptex1.ptr);
 
     const num_textures1 = std.mem.readInt(u32, maptex1[0..4], .little);
     var num_textures2: u32 = undefined;
@@ -143,67 +142,5 @@ fn init_textures() !void {
         std.debug.print("\x08", .{});
     std.debug.print("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08", .{});	
 
-    var directory_ptr: usize = maptex + 4;
-    for (0..@intCast(num_textures)) |i| {
-        const directory: *MapTexture = @ptrFromInt(directory_ptr);
-
-        if (i & 63 == 0) std.debug.print(".", .{});
-
-        if (i == num_textures1) {
-            maptex = @intFromPtr(maptex2.?.ptr);
-            maxoff = maxoff2;
-            directory_ptr = @intCast(maptex + 4);
-        }
-
-        const offset = @as(*i32, @ptrFromInt(@intFromPtr(directory))).*;
-
-        if (offset > maxoff)
-            @panic("R_InitTextures: bad texture directory");
-        
-        const mtexture: *MapTexture = @ptrFromInt(maptex + @as(usize, @intCast(offset)));
-        
-        const size = @sizeOf(Texture) + @sizeOf(TexPath) * @as(i32, @intCast(mtexture.patchcount - 1));
-        var texture: *Texture = @ptrCast(@alignCast(z.zone.malloc(size, .static, null)));
-
-        textures[i] = texture;
-
-        texture.width = mtexture.width;
-        texture.height = mtexture.height;
-        texture.patchcount = mtexture.patchcount;
-
-        @memcpy(&texture.name, &mtexture.name);
-
-        for (0..@intCast(texture.patchcount)) |j| {
-            std.debug.print("hit\n", .{});
-
-            const mpatch = &texture.patches[j];
-            const patch = &texture.patches[j];
-
-            std.debug.print("mpatch: ({}, {}), {} patches\n", .{mpatch.originx, mpatch.originy, mpatch.patch});
-
-            std.debug.print("hit\n", .{});
-
-            patch.originx = mpatch.originx;
-            patch.originy = mpatch.originy;
-            patch.patch = @intCast(patchlookup[@intCast(mpatch.patch)]);
-
-            std.debug.print("hit\n", .{});
-
-            if (patch.patch == -1) {
-                @panic("R_InitTextures: Missing patch in texture");
-            }
-        }
-
-        texturecolumnlump[i] = @as([*]i16, @ptrCast(@alignCast(z.zone.malloc(texture.width*2, .static, null))))[0..@intCast(texture.width*2)];
-        texturecolumnofs[i] = @as([*]u16, @ptrCast(@alignCast(z.zone.malloc(texture.width*2, .static, null))))[0..@intCast(texture.width*2)];
-
-        var j: i32 = 1;
-        while (j * 2 <= texture.width) j <<= 1;
-
-        texturewidthmask[i] = j-1;
-        textureheight[i] = std.math.shl(i32, texture.height, FRACBITS);
-
-        total_width += texture.width;
-        directory_ptr += 1;
-    }
+    
 }
