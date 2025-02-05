@@ -142,6 +142,8 @@ fn init_textures() !void {
         std.debug.print("\x08", .{});
     std.debug.print("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08", .{});	
 
+    // FIXME buffer overflow after here
+
     var directory_ptr = maptex + 4;
     for (0..@intCast(num_textures)) |i| {
         
@@ -184,8 +186,7 @@ fn init_textures() !void {
                 patch.originy = mpatch.originy;
                 patch.patch = @intCast(patchlookup[@intCast(mpatch.patch)]);
 
-                if (patch.patch == -1)
-                {
+                if (patch.patch == -1) {
                     std.debug.print("R_InitTextures: Missing patch in texture {s}", .{texture.name});
                     @panic("R_InitTextures: Missing patch in texture");
                 }
