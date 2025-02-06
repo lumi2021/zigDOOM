@@ -48,6 +48,10 @@ var texturecompositesize: [][]u8 = undefined;
 var texturewidthmask: []i32 = undefined;
 var textureheight: []i32 = undefined;
 
+// for global animation
+var flat_translation: []i32 = undefined;
+var texture_translation: []i32 = undefined;
+
 var total_width: i32 = 0;
 
 // R_InitData:
@@ -193,7 +197,32 @@ fn init_textures() !void {
             }
         }
 
+        texturecolumnlump[i] = @as([*]i16, @ptrCast(@alignCast(z.zone.malloc(texture.width*2, .static, null))))[0..@intCast(texture.width*2)];
+        texturecolumnofs[i] = @as([*]u16, @ptrCast(@alignCast(z.zone.malloc(texture.width*2, .static, null))))[0..@intCast(texture.width*2)];
+
+        var j: usize = 1;
+        while (j * 2 <= texture.width) j <<= 1;
+
+        texturewidthmask[i] = @intCast(j - 1);
+        textureheight[i] = std.math.shlExact(i32, texture.height, FRACBITS) catch unreachable;
+
+        total_width += texture.width;
         directory_ptr += 4;
+    }
+
+    z.zone.free(@ptrCast(maptex1.ptr));
+    if (maptex2 != null) z.zone.free(@ptrCast(maptex2.?.ptr));
+
+    // Precalculate whatever possible.
+    for (0..@intCast(num_textures)) |i| {
+        _ = i; // R_GenerateLookup(i);
+    }
+
+    // Create translation table for global animation.
+    texture_translation = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc((num_textures+1)*4, .static, null))))[0..@intCast((num_textures+1)*4)];
+
+    for (0..@intCast(num_textures)) |i| {
+        texture_translation[i] = @intCast(i);
     }
 
     maxoff = undefined;
