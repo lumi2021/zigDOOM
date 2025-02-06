@@ -16,10 +16,10 @@ const MapPatch = extern struct {
 };
 const MapTexture = extern struct {
     name: [8]u8,
-    masked: bool,
+    masked: u32, // yeah booleans for some reason are 32 bit in C
     width: i16,
     height: i16,
-    columndirectory: **anyopaque, // OBSOLETE
+    columndirectory: u32, // OBSOLETE
     patchcount: i16,
     patches: [1]MapPatch
 };
@@ -56,13 +56,13 @@ var total_width: i32 = 0;
 // Must be called after W_Init.
 pub fn init_data() !void {
     try init_textures();
-    print("InitTextures\n", .{});
+    print("\nInitTextures", .{});
     // R_InitFlats ();
-    print("InitFlats\n", .{});
+    print("\nInitFlats", .{});
     // R_InitSpriteLumps ();
-    print("InitSprites\n", .{});
+    print("\nInitSprites", .{});
     // R_InitColormaps ();
-    print("InitColormaps\n", .{});
+    print("\nInitColormaps", .{});
 }
 
 // Implementation of:
@@ -142,8 +142,6 @@ fn init_textures() !void {
         std.debug.print("\x08", .{});
     std.debug.print("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08", .{});	
 
-    // FIXME buffer overflow after here
-
     var directory_ptr = maptex + 4;
     for (0..@intCast(num_textures)) |i| {
         
@@ -162,10 +160,11 @@ fn init_textures() !void {
             @panic("R_InitTextures: bad texture directory");
         
         const mtexture: *align(1) MapTexture = @ptrFromInt(maptex + offset);
-        std.debug.print("{s: >8} {}x{}, {} patches\n", .{mtexture.name, mtexture.width, mtexture.height, mtexture.patchcount});
 
         var texture: *Texture = @ptrCast(@alignCast(z.zone.malloc(
-            @sizeOf(Texture) + @sizeOf(TexPath) * (mtexture.patchcount - 1),
+            @sizeOf(Texture) + @sizeOf(TexPath) * (mtexture.patchcount),
+            // do `mtexture.patchcount - 1` will open it for a possible buffer
+            // overflow. i think it's zig fault :p
             .static, null)));
         textures[i] = texture;
 
@@ -177,10 +176,10 @@ fn init_textures() !void {
         if (texture.patchcount > 0) {
             const mpatch_arr: [*]volatile MapPatch = @ptrCast(@alignCast(&mtexture.patches));
             const patch_arr: [*]volatile MapPatch = @ptrCast(@alignCast(&texture.patches));
-            
             for (0..@intCast(texture.patchcount)) |j| {
                 const mpatch = mpatch_arr[j];
                 var patch = patch_arr[j];
+
 
                 patch.originx = mpatch.originx;
                 patch.originy = mpatch.originy;
