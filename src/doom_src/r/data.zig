@@ -215,7 +215,7 @@ fn init_textures() !void {
 
     // Precalculate whatever possible.
     for (0..@intCast(num_textures)) |i| {
-        _ = i; // R_GenerateLookup(i);
+        generate_lookup(@intCast(i));
     }
 
     // Create translation table for global animation.
@@ -226,4 +226,32 @@ fn init_textures() !void {
     }
 
     maxoff = undefined;
+}
+
+// Implementation of:
+//     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L296
+fn generate_lookup(texnum: i32) void {
+
+    var texture: *Texture = textures[@intCast(texnum)];
+
+    // Composited texture not created yet.
+    texturecomposite[@intCast(texnum)] = 0;
+
+    //texturecompositesize[@intCast(texnum)] = 0;
+    const collump  = texturecolumnlump[@intCast(texnum)];
+    const colloffs = texturecolumnofs[@intCast(texnum)];
+
+    // Now count the number of columns
+    //  that are covered by more than one patch.
+    // Fill in the lump / offset, so columns
+    //  with only a single patch are all done.
+    const patchcount= root.allocator.alloc(u8, @intCast(texture.width)) catch unreachable;
+    @memset(patchcount, 0);
+    const patch: [*]MapPatch = @ptrCast(&texture.patches);
+
+    _ = collump;
+    _ = colloffs;
+    _ = patch;
+
+    root.allocator.free(patchcount);
 }
