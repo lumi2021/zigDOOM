@@ -3,6 +3,7 @@ const root = @import("root");
 
 const w = root.doom_src.w;
 const z = root.doom_src.z;
+const r = root.doom_src.r;
 
 const print = std.debug.print;
 const force_endianness = root.utils.force_endianness;
@@ -37,6 +38,7 @@ const Texture = struct {
     patchcount: i16,
     patches: [1]MapPatch
 };
+const Path = r.defs.Patch;
 
 const FRACBITS = 16;
 
@@ -239,19 +241,45 @@ fn generate_lookup(texnum: i32) void {
 
     //texturecompositesize[@intCast(texnum)] = 0;
     const collump  = texturecolumnlump[@intCast(texnum)];
-    const colloffs = texturecolumnofs[@intCast(texnum)];
+    const colofs = texturecolumnofs[@intCast(texnum)];
 
     // Now count the number of columns
     //  that are covered by more than one patch.
     // Fill in the lump / offset, so columns
     //  with only a single patch are all done.
     const patchcount= root.allocator.alloc(u8, @intCast(texture.width)) catch unreachable;
+    defer root.allocator.free(patchcount);
+
     @memset(patchcount, 0);
     const patch: [*]MapPatch = @ptrCast(&texture.patches);
 
-    _ = collump;
-    _ = colloffs;
-    _ = patch;
+    for (0..@intCast(texture.patchcount)) |i| {
+        const realpatch: *Path = @ptrCast(@alignCast(w.wad.cache_lump_num(patch[i].patch, .cache)));
+        const x1 = patch[i].originx;
+        var x2 = x1 + realpatch.width;
 
-    root.allocator.free(patchcount);
+        var x: i64 = undefined;
+        if (x1 < 0) {
+            x = 0;
+        } else x = x1;
+
+        if (x2 > texture.width)
+            x2 = texture.width;
+        
+        while (x < x2) : (x += 1) {
+            patchcount[@intCast(x)] += 1;
+            collump[@intCast(x)] = patch[i].patch;
+            colofs[@intCast(x)] = realpatch.columnoffs[@intCast(x-x1)] + 3;
+        }
+
+        while (x < texture.width) : (x += 1) {
+            
+            if (patchcount == 0)
+            {
+                std.debug.print("R_GenerateLookup: column without a patch ({s})\n", .{texture.name});
+                return;
+            }
+
+        }
+    }
 }

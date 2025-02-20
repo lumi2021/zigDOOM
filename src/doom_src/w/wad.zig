@@ -153,7 +153,7 @@ fn extract_file_base(path: []u8, dest: []u8) void {
 pub fn cache_lump_name(name: anytype, tag: enums.ZoneTags) []u8 {
     return cache_lump_num(get_num_for_name(name), tag);
 }
-fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
+pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
     if (index > lumpinfo.len) @panic("index out of bounds!");
 
     if (lumpCache[@intCast(index)] == null) {
