@@ -177,11 +177,13 @@ fn init_textures() !void {
         texture.width = mtexture.width;
         texture.height = mtexture.height;
         texture.patchcount = mtexture.patchcount;
+        
         texture.name = mtexture.name;
 
         if (texture.patchcount > 0) {
             const mpatch_arr: [*]volatile MapPatch = @ptrCast(@alignCast(&mtexture.patches));
             const patch_arr: [*]volatile MapPatch = @ptrCast(@alignCast(&texture.patches));
+
             for (0..@intCast(texture.patchcount)) |j| {
                 const mpatch = mpatch_arr[j];
                 var patch = patch_arr[j];
@@ -247,13 +249,11 @@ fn generate_lookup(texnum: i32) void {
     //  that are covered by more than one patch.
     // Fill in the lump / offset, so columns
     //  with only a single patch are all done.
-    const patchcount= root.allocator.alloc(u8, @intCast(texture.width)) catch unreachable;
+    const patchcount = root.allocator.alloc(u8, @intCast(texture.width)) catch unreachable;
     defer root.allocator.free(patchcount);
 
     @memset(patchcount, 0);
     const patch: [*]MapPatch = @ptrCast(&texture.patches);
-
-    std.debug.print("help", .{});
 
     for (0..@intCast(texture.patchcount)) |i| {
 
@@ -275,8 +275,6 @@ fn generate_lookup(texnum: i32) void {
 
         const patch_patch: i32 = @bitCast(@as(u32, @intCast(@as(u16, @bitCast(patch[i].patch)))));
         const realpatch: *Path = @ptrCast(@alignCast(w.wad.cache_lump_num(patch_patch, .cache).ptr));
-        
-        std.debug.print("help", .{});
         
         const x1 = patch[i].originx;
         var x2 = x1 + realpatch.width;

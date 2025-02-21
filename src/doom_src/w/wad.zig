@@ -156,8 +156,6 @@ pub fn cache_lump_name(name: anytype, tag: enums.ZoneTags) []u8 {
 pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
     const u_idx: usize = @intCast(@as(u32, @bitCast(index)));
 
-    std.debug.print("|{0} {0X:0>16}|", .{u_idx});
-
     if (index > lumpinfo.len) @panic("index out of bounds!");
 
     if (lumpCache[u_idx] == null) {
