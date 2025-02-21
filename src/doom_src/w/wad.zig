@@ -154,18 +154,22 @@ pub fn cache_lump_name(name: anytype, tag: enums.ZoneTags) []u8 {
     return cache_lump_num(get_num_for_name(name), tag);
 }
 pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
+    const u_idx: usize = @intCast(@as(u32, @bitCast(index)));
+
+    std.debug.print("|{0} {0X:0>16}|", .{u_idx});
+
     if (index > lumpinfo.len) @panic("index out of bounds!");
 
-    if (lumpCache[@intCast(index)] == null) {
-        const size = lumpinfo[@intCast(index)].size;
+    if (lumpCache[u_idx] == null) {
+        const size = lumpinfo[u_idx].size;
 
         const ptr = dstc.zone.malloc(
             size,
             tag,
-            @ptrCast(&lumpCache[@intCast(index)])
+            @ptrCast(&lumpCache[u_idx])
         );
         const buf: []u8 = @as([*]u8, @ptrCast(ptr))[0..@intCast(size)];
-        lumpCache[@intCast(index)] = buf;
+        lumpCache[u_idx] = buf;
 
         read_lump(index, buf) catch |err| {
             std.debug.print("Error: {s}\n", .{@errorName(err)});
@@ -175,13 +179,15 @@ pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
 
     }
 
-    return lumpCache[@intCast(index)].?;
+    return lumpCache[u_idx].?;
 }
 
 fn read_lump(index: i32, dest: []u8) !void {
+    const u_idx: usize = @intCast(@as(u32, @bitCast(index)));
+
     if (index > lumpinfo.len) @panic("index out of bounds!");
 
-    const l = lumpinfo[@intCast(index)];
+    const l = lumpinfo[u_idx];
 
     if (l.handle) |handle| {
 
@@ -192,7 +198,7 @@ fn read_lump(index: i32, dest: []u8) !void {
 }
 pub fn lump_length(index: i32) i32 {
     if (index > lumpinfo.len) @panic("index out of bounds!");
-    return lumpinfo[@intCast(index)].size;
+    return lumpinfo[@intCast(@as(u32, @bitCast(index)))].size;
 }
 
 

@@ -253,8 +253,31 @@ fn generate_lookup(texnum: i32) void {
     @memset(patchcount, 0);
     const patch: [*]MapPatch = @ptrCast(&texture.patches);
 
+    std.debug.print("help", .{});
+
     for (0..@intCast(texture.patchcount)) |i| {
-        const realpatch: *Path = @ptrCast(@alignCast(w.wad.cache_lump_num(patch[i].patch, .cache)));
+
+        std.debug.print(
+                \\
+                \\ p:  {0} {0X:0>8}
+                \\ ox: {1} {1X:0>8}
+                \\ oy: {2} {2X:0>8}
+                \\ cm: {3} {3X:0>8}
+                \\ sd: {4} {4X:0>8}
+                \\
+                ,.{
+                    @as(u16, @bitCast(patch[i].patch)),
+                    @as(u16, @bitCast(patch[i].originx)),
+                    @as(u16, @bitCast(patch[i].originy)),
+                    @as(u16, @bitCast(patch[i].colormap)),
+                    @as(u16, @bitCast(patch[i].stepdir))
+                });
+
+        const patch_patch: i32 = @bitCast(@as(u32, @intCast(@as(u16, @bitCast(patch[i].patch)))));
+        const realpatch: *Path = @ptrCast(@alignCast(w.wad.cache_lump_num(patch_patch, .cache).ptr));
+        
+        std.debug.print("help", .{});
+        
         const x1 = patch[i].originx;
         var x2 = x1 + realpatch.width;
 
@@ -267,14 +290,16 @@ fn generate_lookup(texnum: i32) void {
             x2 = texture.width;
         
         while (x < x2) : (x += 1) {
+            std.debug.print("help", .{});
+
             patchcount[@intCast(x)] += 1;
             collump[@intCast(x)] = patch[i].patch;
-            colofs[@intCast(x)] = realpatch.columnoffs[@intCast(x-x1)] + 3;
+            colofs[@intCast(x)] = @intCast(realpatch.columnoffs[@intCast(x-x1)] + 3);
         }
 
         while (x < texture.width) : (x += 1) {
             
-            if (patchcount == 0)
+            if (patchcount[0] == 0)
             {
                 std.debug.print("R_GenerateLookup: column without a patch ({s})\n", .{texture.name});
                 return;
