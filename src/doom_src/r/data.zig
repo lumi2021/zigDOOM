@@ -70,7 +70,7 @@ pub fn init_data() !void {
     print("\nInitTextures", .{});
     try init_flats();
     print("\nInitFlats", .{});
-    // R_InitSpriteLumps ();
+    try init_flats();
     print("\nInitSprites", .{});
     // R_InitColormaps ();
     print("\nInitColormaps", .{});
