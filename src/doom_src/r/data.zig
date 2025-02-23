@@ -56,6 +56,11 @@ var texture_translation: []i32 = undefined;
 
 var total_width: i32 = 0;
 
+// flats
+var firstflat: i32 = undefined;
+var lastflat: i32 = undefined;
+var numflats: i32 = undefined;
+
 // R_InitData:
 //  Locates all the lumps
 //  that will be used by all views
@@ -63,7 +68,7 @@ var total_width: i32 = 0;
 pub fn init_data() !void {
     try init_textures();
     print("\nInitTextures", .{});
-    // R_InitFlats ();
+    try init_flats();
     print("\nInitFlats", .{});
     // R_InitSpriteLumps ();
     print("\nInitSprites", .{});
@@ -228,6 +233,23 @@ fn init_textures() !void {
     }
 
     maxoff = undefined;
+}
+
+// Implementation of:
+//     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L581
+fn init_flats() !void {
+
+    firstflat = w.wad.get_num_for_name("F_START") + 1;
+    lastflat = w.wad.get_num_for_name("F_END") - 1;
+    numflats = lastflat - firstflat + 1;
+
+    // Create translation table for global animation.
+    flat_translation = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc((numflats+1)*4, .static, null))))[0..@intCast((numflats+1)*4)];
+
+    for (0..@intCast(numflats)) |i| {
+        flat_translation[i] = @intCast(i);
+    }
+
 }
 
 // Implementation of:
