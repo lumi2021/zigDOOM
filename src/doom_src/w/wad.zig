@@ -169,18 +169,13 @@ pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
         const buf: []u8 = @as([*]u8, @ptrCast(ptr))[0..@intCast(size)];
         lumpCache[u_idx] = buf;
 
-        read_lump(index, buf) catch |err| {
-            std.debug.print("Error: {s}\n", .{@errorName(err)});
-            @panic("Could not read lump!");
-        
-        };
-
+        read_lump(index, buf);
     }
 
     return lumpCache[u_idx].?;
 }
 
-fn read_lump(index: i32, dest: []u8) !void {
+pub fn read_lump(index: i32, dest: []u8) void {
     const u_idx: usize = @intCast(@as(u32, @bitCast(index)));
 
     if (index > lumpinfo.len) @panic("index out of bounds!");
@@ -189,8 +184,8 @@ fn read_lump(index: i32, dest: []u8) !void {
 
     if (l.handle) |handle| {
 
-        try handle.seekTo(@intCast(l.position));
-        _ = try handle.readAll(dest);
+        handle.seekTo(@intCast(l.position)) catch unreachable;
+        _ = handle.readAll(dest) catch unreachable;
 
     } else { @panic("Cannot access data source file!"); }
 }

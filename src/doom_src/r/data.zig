@@ -70,31 +70,34 @@ var spritewidth: []i32 = undefined;
 var spriteoffset: []i32 = undefined;
 var spritetopoffset: []i32 = undefined;
 
+// colmaps
+var colormaps: []u8 = undefined;
+
 // R_InitData:
 //  Locates all the lumps
 //  that will be used by all views
 // Must be called after W_Init.
-pub fn init_data() !void {
-    try init_textures();
-    print("\nInitTextures", .{});
-    try init_flats();
-    print("\nInitFlats", .{});
-    try init_sprite_lumps();
-    print("\nInitSprites", .{});
-    // R_InitColormaps ();
-    print("\nInitColormaps", .{});
+pub fn init_data() void {
+    init_textures();
+    //print("\nInitTextures", .{});
+    init_flats();
+    //print("\nInitFlats", .{});
+    init_sprite_lumps();
+    //print("\nInitSprites", .{});
+    init_colormaps();
+    //print("\nInitColormaps", .{});
 }
 
 // Implementation of:
 //     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L411
-fn init_textures() !void {
+fn init_textures() void {
     // Load the patch names from pnames.lmp.
     const names = w.wad.cache_lump_name("PNAMES", .static);    
     const num_map_patches: u32 = std.mem.readInt(u32, names[0..4], .little);
 
     var names_p = names[4..];
 
-    const patchlookup = try root.allocator.alloc(i32, num_map_patches);
+    const patchlookup = root.allocator.alloc(i32, num_map_patches) catch |err| @panic(@errorName(err));
     defer root.allocator.free(patchlookup);
 
     var name: [9]u8 = undefined;
@@ -246,7 +249,7 @@ fn init_textures() !void {
 
 // Implementation of:
 //     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L581
-fn init_flats() !void {
+fn init_flats() void {
 
     firstflat = w.wad.get_num_for_name("F_START") + 1;
     lastflat = w.wad.get_num_for_name("F_END") - 1;
@@ -263,7 +266,7 @@ fn init_flats() !void {
 
 // Implementation of:
 //     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L603
-fn init_sprite_lumps() !void {
+fn init_sprite_lumps() void {
 
     firstspritelump = w.wad.get_num_for_name("S_START") + 1;
     lastspritelump = w.wad.get_num_for_name("S_END") - 1;
@@ -283,6 +286,20 @@ fn init_sprite_lumps() !void {
 
     }
 
+}
+
+// Implementation of:
+//     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L633
+fn init_colormaps() void {
+    // Load in the light tables, 
+    //  256 byte align tables.
+
+    const lump = w.wad.get_num_for_name("COLORMAP");
+    const length = w.wad.lump_length(lump) + 255;
+
+    colormaps = @as([*]u8, @ptrCast(@alignCast(z.zone.malloc(length, .static, null))))[0..@intCast(length)];
+    colormaps.ptr = @ptrFromInt((@intFromPtr(colormaps.ptr) + 255) & ~@as(usize, 0xFF));
+    w.wad.read_lump(lump, colormaps);
 }
 
 // Implementation of:
@@ -341,7 +358,7 @@ fn generate_lookup(texnum: i32) void {
             if (patchcount[@intCast(x)] == 0) {
                 // doom uses printf here but i think it is better if the release
                 // don't fuck with the little loading bar :3
-                root.print_log("R_GenerateLookup: column without a patch ({s})\n", .{texture.name});
+                // root.print_log("R_GenerateLookup: column without a patch ({s})\n", .{texture.name});
                 return;
             }
 
@@ -350,8 +367,7 @@ fn generate_lookup(texnum: i32) void {
                 collump[@intCast(x)] = -1;
                 colofs[@intCast(x)] = @intCast(texturecompositesize[@intCast(texnum)]);
 
-                if (texturecompositesize[@intCast(texnum)] > 0x100000 - @as(usize, @intCast(texture.height)))
-                {
+                if (texturecompositesize[@intCast(texnum)] > 0x100000 - @as(usize, @intCast(texture.height))) {
                     std.debug.print("R_GenerateLookup: texture {} is >64k", .{texnum});
                     @panic("R_GenerateLookup: texture is >64k");
                 }

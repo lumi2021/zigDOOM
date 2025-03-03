@@ -1,4 +1,4 @@
-pub const main = @import("dmain.zig");
+pub const main = d.main.dMain;
 pub const resources = @import("dresources.zig");
 pub const gamestate = @import("dgamestate.zig");
 pub const zone = z.zone;

@@ -2,7 +2,7 @@ const root = @import("root");
 const std = @import("std");
 const builtin = @import("builtin");
 
-const dsrc = @import("doomsrc.zig");
+const dsrc = root.doom_src;
 const enums = dsrc.enums;
 const game_state = dsrc.gamestate;
 
@@ -113,10 +113,10 @@ pub fn dMain() !void {
     dsrc.m.menu.init();
 
     root.print_log("R_Init: Init DOOM refresh daemon - ", .{});
-    try dsrc.r.main.init();
+    dsrc.r.main.init();
 
     root.print_log("\nP_Init: Init Playloop state.\n", .{});
-    //P_Init ();
+    dsrc.p.setup.init();
 
     root.print_log("I_Init: Setting up machine state.\n", .{});
     //I_Init ();

@@ -1,10 +1,10 @@
 const root = @import("root");
 const dsrc = root.doom_src;
 
-const r_data = @import("data.zig");
+const r = @import("r.zig");
 
-pub fn init() !void {
+pub fn init() void {
 
-    try r_data.init_data();
+    r.data.init_data();
 
 }

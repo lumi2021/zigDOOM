@@ -26,7 +26,7 @@ pub fn main() !void {
     try utils.init();
 
     // init game
-    try doom_src.main.dMain();
+    try doom_src.main();
 
 }
 
