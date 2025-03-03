@@ -38,7 +38,7 @@ const Texture = extern struct {
     patchcount: i16,
     patches: MapPatch
 };
-const Path = r.defs.Patch;
+const Patch = r.defs.Patch;
 
 const FRACBITS = 16;
 
@@ -61,6 +61,15 @@ var firstflat: i32 = undefined;
 var lastflat: i32 = undefined;
 var numflats: i32 = undefined;
 
+// Sprites
+var firstspritelump: i32 = undefined;
+var lastspritelump: i32 = undefined;
+var numspritelumps: i32 = undefined;
+
+var spritewidth: []i32 = undefined;
+var spriteoffset: []i32 = undefined;
+var spritetopoffset: []i32 = undefined;
+
 // R_InitData:
 //  Locates all the lumps
 //  that will be used by all views
@@ -70,7 +79,7 @@ pub fn init_data() !void {
     print("\nInitTextures", .{});
     try init_flats();
     print("\nInitFlats", .{});
-    // R_InitSpriteLumps ();
+    try init_sprite_lumps();
     print("\nInitSprites", .{});
     // R_InitColormaps ();
     print("\nInitColormaps", .{});
@@ -253,8 +262,34 @@ fn init_flats() !void {
 }
 
 // Implementation of:
+//     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L603
+fn init_sprite_lumps() !void {
+
+    firstspritelump = w.wad.get_num_for_name("S_START") + 1;
+    lastspritelump = w.wad.get_num_for_name("S_END") - 1;
+    numspritelumps = lastspritelump - firstspritelump + 1;
+
+    spritewidth = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(numspritelumps * @sizeOf(i32), .static, null))))[0..@intCast(numspritelumps * @sizeOf(i32))];
+    spriteoffset = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(numspritelumps * @sizeOf(i32), .static, null))))[0..@intCast(numspritelumps * @sizeOf(i32))];
+    spritetopoffset = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(numspritelumps * @sizeOf(i32), .static, null))))[0..@intCast(numspritelumps * @sizeOf(i32))];
+
+    for (0..@intCast(numspritelumps)) |i| {
+        if ((i & @as(usize, 63)) == 0) std.debug.print(".", .{});
+
+        const patch: *Patch = @ptrCast(@alignCast(w.wad.cache_lump_num(firstspritelump + 1, .cache).ptr));
+        spritewidth[i] = std.math.shlExact(i32, patch.width, FRACBITS) catch unreachable;
+        spriteoffset[i] = std.math.shlExact(i32, patch.leftoffset, FRACBITS) catch unreachable;
+        spritetopoffset[i] = std.math.shlExact(i32, patch.topoffset, FRACBITS) catch unreachable;
+
+    }
+
+}
+
+// Implementation of:
 //     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L296
 fn generate_lookup(texnum: i32) void {
+// FIXME this function is generating weird lines on the console,
+// i belive this is not right
 
     var texture: *Texture = textures[@intCast(texnum)];
 
@@ -279,7 +314,7 @@ fn generate_lookup(texnum: i32) void {
         const patch = patch_l[i];
 
         const patch_patch: i32 = @bitCast(@as(u32, @intCast(@as(u16, @bitCast(patch.patch)))));
-        const realpatch: *Path = @ptrCast(@alignCast(w.wad.cache_lump_num(patch_patch, .cache).ptr));
+        const realpatch: *Patch = @ptrCast(@alignCast(w.wad.cache_lump_num(patch_patch, .cache).ptr));
         
         const x1 = patch.originx;
         var x2 = x1 + realpatch.width;
