@@ -1,11 +1,9 @@
 .{
-    .name = "libvaxis-starter",
-    .version = "0.0.0",
+    .name = .zigDOOM,
+    .version = "1.0.0",
+    .fingerprint = 0xc1a1cea429cf124d,
     .dependencies = .{
-        .vaxis = .{
-            .url = "https://github.com/rockorager/libvaxis/archive/refs/tags/v0.5.1.tar.gz",
-            .hash = "1220de23a3240e503397ea579de4fd85db422f537e10036ef74717c50164475813ce",
-        },
+
     },
     .paths = .{
         "build.zig",

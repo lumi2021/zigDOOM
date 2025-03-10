@@ -133,7 +133,7 @@ pub fn malloc(size: i32, tag: enums.ZoneTags, user: ?**anyopaque) *anyopaque {
         if (@intFromEnum(tag) > @intFromEnum(enums.ZoneTags.purgelevel))
             @panic("A user is required for purgable blocks");
         
-        // mark as in use, but unowned	
+        // mark as in use, but unowned
         base.user = @ptrFromInt(@alignOf(usize));		
     }
 

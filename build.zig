@@ -2,12 +2,7 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .Debug });
-
-    const vaxis_dep = b.dependency("vaxis", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    const optimize = std.builtin.OptimizeMode.Debug;
 
     const exe = b.addExecutable(.{
         .name = "zigDOOM",
@@ -15,8 +10,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-
-    exe.root_module.addImport("vaxis", vaxis_dep.module("vaxis"));
 
     b.installArtifact(exe);
 
