@@ -11,7 +11,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    b.installArtifact(exe);
+    const install = b.addInstallArtifact(exe, .{});
+    
+    b.default_step.dependOn(&install.step);
 
     const run_exe = b.addRunArtifact(exe);
 

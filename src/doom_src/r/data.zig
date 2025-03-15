@@ -122,15 +122,15 @@ fn init_textures() void {
     var maptex = maptex1;
     var maptex2: ?[]u8 = undefined;
 
-    const num_textures1 = std.mem.readInt(u32, maptex1[0..4], .little);
-    var num_textures2: u32 = undefined;
+    const num_textures1 = std.mem.readInt(i32, maptex1[0..4], .little);
+    var num_textures2: i32 = undefined;
 
     var maxoff = w.wad.lump_length(w.wad.get_num_for_name("TEXTURE1"));
     var maxoff2: i32 = undefined;
 
     if (w.wad.check_num_for_name("TEXTURE2") != -1) {
         maptex2 =  w.wad.cache_lump_name("TEXTURE2", .static);
-        num_textures2 = std.mem.readInt(u32, maptex2.?[0..4], .little);
+        num_textures2 = std.mem.readInt(i32, maptex2.?[0..4], .little);
         maxoff2 = w.wad.lump_length(w.wad.get_num_for_name("TEXTURE2"));
     } else {
         maptex2 = null;
@@ -138,7 +138,7 @@ fn init_textures() void {
         maxoff2 = 0;
     }
 
-    num_textures = @intCast(num_textures1 + num_textures2);
+    num_textures = num_textures1 + num_textures2;
 
     const _size_0 = num_textures * @sizeOf([]usize);
     textures             = @as([*]*Texture, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
@@ -157,15 +157,14 @@ fn init_textures() void {
     const temp_3: usize = @intCast(@divTrunc(temp_2 - temp_1 + 63, 64) + @divTrunc(num_textures + 63, 64));
 
     std.debug.print("[", .{});
-    for (0..temp_3) |_|
-        std.debug.print(" ", .{});
+    for (0..temp_3) |_| std.debug.print(" ", .{});
     std.debug.print("         ]", .{});
 
     for (0..temp_3) |_|
         std.debug.print("\x08", .{});
     std.debug.print("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08", .{});	
 
-    var directory = maptex[4..];
+    var directory: [*]align(1) i32 = @ptrCast(maptex[4..].ptr);
     for (0..@intCast(num_textures)) |i| {
         
         if ((i & 63) == 0) std.debug.print(".", .{});
@@ -174,15 +173,14 @@ fn init_textures() void {
             // Start looking in second texture file.
             maptex = maptex2.?;
             maxoff = maxoff2;
-            directory = maptex[4..];
+            directory = @ptrCast(maptex[4..].ptr);
         }
 
-        const offset: usize = @intCast(@as(*i32, @ptrCast(@alignCast(&directory[0]))).*);
+        const offset: usize = @intCast(directory[0]);
 
-        if (offset > maxoff)
-            @panic("R_InitTextures: bad texture directory");
+        if (offset > maxoff) @panic("R_InitTextures: bad texture directory");
         
-        const mtexture: *align(1) MapTexture = @ptrFromInt(@intFromPtr(maptex.ptr) + offset);
+        const mtexture: *align(1) MapTexture = @ptrCast(@alignCast(&maptex.ptr[offset]));
 
         var texture: *Texture = @ptrCast(@alignCast(z.zone.malloc(
             @sizeOf(Texture) + @sizeOf(TexPath) * (mtexture.patchcount),
@@ -191,23 +189,38 @@ fn init_textures() void {
             .static, null)));
         textures[i] = texture;
 
-        texture.width = mtexture.width;
-        texture.height = mtexture.height;
-        texture.patchcount = mtexture.patchcount;
+        texture.width = force_endianness(mtexture.width);
+        texture.height = force_endianness(mtexture.height);
+        texture.patchcount = force_endianness(mtexture.patchcount);
         
         texture.name = mtexture.name;
 
         if (texture.patchcount > 0) {
-            const mpatch_arr: [*]volatile MapPatch = @ptrCast(@alignCast(&mtexture.patches));
-            const patch_arr: [*]volatile MapPatch = @ptrCast(@alignCast(&texture.patches));
+            const mpatch_arr: [*]align(1) MapPatch = @ptrCast(@alignCast(&mtexture.patches));
+            const patch_arr: [*]align(1) MapPatch = @ptrCast(@alignCast(&texture.patches));
 
             for (0..@intCast(texture.patchcount)) |j| {
                 const mpatch = mpatch_arr[j];
                 var patch = &patch_arr[j];
 
-                patch.originx = mpatch.originx;
-                patch.originy = mpatch.originy;
-                patch.patch = @intCast(patchlookup[@intCast(mpatch.patch)]);
+                std.debug.print(\\
+                \\originx:  {X:0>4} ({})
+                \\originy:  {X:0>4} ({})
+                \\patch:    {X:0>4} ({})
+                \\stepdir:  {X:0>4} ({})
+                \\colormap: {X:0>4} ({})
+                \\
+                , .{
+                    @as(u16, @bitCast(mpatch.originx)), mpatch.originx,
+                    @as(u16, @bitCast(mpatch.originy)), mpatch.originy,
+                    @as(u16, @bitCast(mpatch.patch)), mpatch.patch,
+                    @as(u16, @bitCast(mpatch.stepdir)), mpatch.stepdir,
+                    @as(u16, @bitCast(mpatch.colormap)), mpatch.colormap,
+                });
+
+                patch.originx = force_endianness(mpatch.originx);
+                patch.originy = force_endianness(mpatch.originy);
+                patch.patch = @intCast(patchlookup[@intCast(force_endianness(mpatch.patch))]);
 
                 if (patch.patch == -1) {
                     std.debug.print("R_InitTextures: Missing patch in texture {s}", .{texture.name});
@@ -227,7 +240,7 @@ fn init_textures() void {
         textureheight[i] = std.math.shlExact(i32, texture.height, FRACBITS) catch unreachable;
 
         total_width += texture.width;
-        directory = directory[4..];
+        directory = directory[1..];
     }
 
     z.zone.free(@ptrCast(maptex1.ptr));

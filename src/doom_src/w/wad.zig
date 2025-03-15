@@ -87,15 +87,12 @@ fn add_file(filename: []u8) !void {
                 return error.UnknownWADMagic;
             }
 
-            force_endianness(i32, &header.infotableofs);
-            force_endianness(i32,&header.infotableofs);
-
-            root.print_dbg("{s}: {} lumps\n", .{header.identification, header.numlumps});
+            root.print_dbg("{s}: {} lumps\n", .{header.identification, force_endianness(header.numlumps)});
 
             const lumps = try alloc.alloc(FileLump, @intCast(header.numlumps));
             const lumpsbuf = @as([*]u8, @ptrCast(@alignCast(lumps.ptr)))[0..(lumps.len * @sizeOf(FileLump))];
 
-            try handle.seekTo(@intCast(header.infotableofs));
+            try handle.seekTo(@intCast(force_endianness(header.infotableofs)));
             _ = try handle.read(lumpsbuf);
             
             root.print_dbg("Parsed {} lumps\n", .{lumps.len});
