@@ -34,10 +34,3 @@ pub inline fn print_log(comptime fmt: []const u8, args: anytype) void {
     std.debug.print(fmt, args);
 }
 
-pub fn panic(msg: []const u8, stack_trace: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    std.debug.print("!!! panic !!!\n\r", .{});
-    std.debug.print("{s}\n\r", .{msg});
-    if (stack_trace) |st| std.debug.dumpStackTrace(st.*);
-
-    std.process.exit(1);
-}

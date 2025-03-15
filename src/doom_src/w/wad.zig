@@ -150,7 +150,7 @@ fn extract_file_base(path: []u8, dest: []u8) void {
 }
 
 
-pub fn cache_lump_name(name: anytype, tag: enums.ZoneTags) []u8 {
+pub fn cache_lump_name(name: []const u8, tag: enums.ZoneTags) []u8 {
     return cache_lump_num(get_num_for_name(name), tag);
 }
 pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
@@ -195,17 +195,13 @@ pub fn lump_length(index: i32) i32 {
 }
 
 
-pub fn get_num_for_name(name: anytype) i32 {
-    return concrete_check_num_for_name(@ptrCast(@alignCast(@constCast(name))));
+pub fn get_num_for_name(name: []const u8) i32 {
+    return check_num_for_name(name);
 }
-pub fn check_num_for_name(name: anytype) i32 {
-    return concrete_check_num_for_name(@ptrCast(@alignCast(@constCast(name))));
-}
-
-fn concrete_check_num_for_name(name: []u8) i32 {
+pub fn check_num_for_name(name: []const u8) i32 {
+    
     var name8: [9]u8 = std.mem.zeroes([9]u8);
-    const constname: []const u8 = @ptrCast(name);
-    _ = std.ascii.upperString(&name8, constname);
+    _ = std.ascii.upperString(&name8, name);
 
     const v1: u32 = @bitCast(name8[0..4].*);
     const v2: u32 = @bitCast(name8[4..8].*);
@@ -221,4 +217,6 @@ fn concrete_check_num_for_name(name: []u8) i32 {
 
     // TFB. Not found.
     return -1;
+
 }
+

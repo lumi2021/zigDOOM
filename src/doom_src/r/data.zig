@@ -16,7 +16,7 @@ const MapPatch = extern struct {
     colormap: i16,
 };
 const MapTexture = extern struct {
-    name: [8]u8,
+    name: [8:0]u8,
     masked: u32, // yeah booleans for some reason are 32 bit in C
     width: i16,
     height: i16,
@@ -42,6 +42,7 @@ const Patch = r.defs.Patch;
 
 const FRACBITS = 16;
 
+var num_textures: i32 = undefined;
 var textures: []*Texture = undefined;
 var texturecolumnlump: [][]i16 = undefined;
 var texturecolumnofs: [][]u16 = undefined;
@@ -137,7 +138,7 @@ fn init_textures() void {
         maxoff2 = 0;
     }
 
-    const num_textures: i32 = @intCast(num_textures1 + num_textures2);
+    num_textures = @intCast(num_textures1 + num_textures2);
 
     const _size_0 = num_textures * @sizeOf([]usize);
     textures             = @as([*]*Texture, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
@@ -379,4 +380,27 @@ fn generate_lookup(texnum: i32) void {
     }
 
     texture = undefined;
+}
+
+// Implementation of:
+//     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L718
+pub fn texture_num_for_name(name: [:0]const u8) i32 {
+    const i = check_texture_num_for_name(name);
+    if (i == -1) {
+        std.debug.print("R_FlatNumForName: {s} not found\r\n", .{name});
+        @panic("R_FlatNumForName: not found");
+    }
+    return i;
+}
+
+// Implementation of:
+//     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L718
+pub fn check_texture_num_for_name(name: [:0]const u8) i32 {
+       // "NoTexture" marker.
+    if (name[0] == '-') return 0;
+
+    for (0 .. @intCast(num_textures)) |i| {
+        if (std.mem.eql(u8, std.mem.sliceTo(name, 0), std.mem.sliceTo(&textures[i].name, 0))) return @intCast(i);
+    }
+    return -1;
 }
