@@ -61,7 +61,7 @@ pub fn InitZoneBase() []u8 {
 
 // Implementation of
 //    https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/z_zone.c#L184
-pub fn malloc(size: i32, tag: enums.ZoneTags, user: ?**anyopaque) *anyopaque {
+pub fn malloc(comptime T: type, size: i32, tag: enums.ZoneTags, user: ?**anyopaque) []T {
     // fix to the weird zig alignment shit
     const alig: i32 = @intCast(@alignOf(Memblock) - 1);
     const _size: i32 = ((size + alig) & ~alig)
@@ -144,8 +144,9 @@ pub fn malloc(size: i32, tag: enums.ZoneTags, user: ?**anyopaque) *anyopaque {
 
     base.id = zoneid;
 
-    const ptr: *anyopaque = @ptrFromInt(@intFromPtr(base) + @sizeOf(Memblock));
-    return ptr;
+    const ptr: [*]T = @ptrFromInt(@intFromPtr(base) + @sizeOf(Memblock));
+    const tsize = @sizeOf(T);
+    return ptr[0 .. @intCast(@divExact(size, tsize))];
 }
 
 // Implementation of

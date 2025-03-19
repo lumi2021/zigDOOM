@@ -158,12 +158,7 @@ pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
     if (lumpCache[u_idx] == null) {
         const size = lumpinfo[u_idx].size;
 
-        const ptr = dstc.zone.malloc(
-            size,
-            tag,
-            @ptrCast(&lumpCache[u_idx])
-        );
-        const buf: []u8 = @as([*]u8, @ptrCast(ptr))[0..@intCast(size)];
+        const buf = dstc.zone.malloc(u8, size, tag, @ptrCast(&lumpCache[u_idx]));
         lumpCache[u_idx] = buf;
 
         read_lump(index, buf);

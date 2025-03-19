@@ -92,173 +92,10 @@ pub fn init_data() void {
 // Implementation of:
 //     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L411
 fn init_textures() void {
-    // Load the patch names from pnames.lmp.
-    const names = w.wad.cache_lump_name("PNAMES", .static);    
-    const num_map_patches: u32 = std.mem.readInt(u32, names[0..4], .little);
 
-    var names_p = names[4..];
 
-    const patchlookup = root.allocator.alloc(i32, num_map_patches) catch |err| @panic(@errorName(err));
-    defer root.allocator.free(patchlookup);
 
-    var name: [9]u8 = undefined;
-    name[8] = 0;
-
-    for(0..num_map_patches) |i| {
-        const start = i * 8;
-        const end = (i+1) * 8;
-
-        name[0..8].* = names_p[start..end][0..8].*;
-        patchlookup[i] = w.wad.check_num_for_name(&name);
-    }
-    // bro this is unsafe as fuck lol
-    z.zone.free(@ptrCast(names));
-
-    // Load the map texture definitions from textures.lmp.
-    // The data is contained in one or two lumps,
-    //  TEXTURE1 for shareware, plus TEXTURE2 for commercial.
-
-    const maptex1 = w.wad.cache_lump_name("TEXTURE1", .static);
-    var maptex = maptex1;
-    var maptex2: ?[]u8 = undefined;
-
-    const num_textures1 = std.mem.readInt(i32, maptex1[0..4], .little);
-    var num_textures2: i32 = undefined;
-
-    var maxoff = w.wad.lump_length(w.wad.get_num_for_name("TEXTURE1"));
-    var maxoff2: i32 = undefined;
-
-    if (w.wad.check_num_for_name("TEXTURE2") != -1) {
-        maptex2 =  w.wad.cache_lump_name("TEXTURE2", .static);
-        num_textures2 = std.mem.readInt(i32, maptex2.?[0..4], .little);
-        maxoff2 = w.wad.lump_length(w.wad.get_num_for_name("TEXTURE2"));
-    } else {
-        maptex2 = null;
-        num_textures2 = 0;
-        maxoff2 = 0;
-    }
-
-    num_textures = num_textures1 + num_textures2;
-
-    const _size_0 = num_textures * @sizeOf([]usize);
-    textures             = @as([*]*Texture, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
-    texturecolumnlump    = @as([*][]i16, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
-    texturecolumnofs     = @as([*][]u16, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
-    texturecomposite     = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
-    texturecompositesize = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
-    texturewidthmask     = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
-    textureheight        = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(_size_0, .static, null))))[0..@intCast(_size_0)];
-
-    total_width = 0;
-
-    //  Really complex printing shit...
-    const temp_1 = w.wad.get_num_for_name("S_START"); // P_???????
-    const temp_2 = w.wad.get_num_for_name("S_END") - 1;
-    const temp_3: usize = @intCast(@divTrunc(temp_2 - temp_1 + 63, 64) + @divTrunc(num_textures + 63, 64));
-
-    std.debug.print("[", .{});
-    for (0..temp_3) |_| std.debug.print(" ", .{});
-    std.debug.print("         ]", .{});
-
-    for (0..temp_3) |_|
-        std.debug.print("\x08", .{});
-    std.debug.print("\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08", .{});	
-
-    var directory: [*]align(1) i32 = @ptrCast(maptex[4..].ptr);
-    for (0..@intCast(num_textures)) |i| {
-        
-        if ((i & 63) == 0) std.debug.print(".", .{});
-
-        if (i == num_textures1) {
-            // Start looking in second texture file.
-            maptex = maptex2.?;
-            maxoff = maxoff2;
-            directory = @ptrCast(maptex[4..].ptr);
-        }
-
-        const offset: usize = @intCast(directory[0]);
-
-        if (offset > maxoff) @panic("R_InitTextures: bad texture directory");
-        
-        const mtexture: *align(1) MapTexture = @ptrCast(@alignCast(&maptex.ptr[offset]));
-
-        var texture: *Texture = @ptrCast(@alignCast(z.zone.malloc(
-            @sizeOf(Texture) + @sizeOf(TexPath) * (mtexture.patchcount),
-            // do `mtexture.patchcount - 1` will open it for a possible buffer
-            // overflow. i think it's zig fault :p
-            .static, null)));
-        textures[i] = texture;
-
-        texture.width = force_endianness(mtexture.width);
-        texture.height = force_endianness(mtexture.height);
-        texture.patchcount = force_endianness(mtexture.patchcount);
-        
-        texture.name = mtexture.name;
-
-        if (texture.patchcount > 0) {
-            const mpatch_arr: [*]align(1) MapPatch = @ptrCast(@alignCast(&mtexture.patches));
-            const patch_arr: [*]align(1) MapPatch = @ptrCast(@alignCast(&texture.patches));
-
-            for (0..@intCast(texture.patchcount)) |j| {
-                const mpatch = mpatch_arr[j];
-                var patch = &patch_arr[j];
-
-                std.debug.print(\\
-                \\originx:  {X:0>4} ({})
-                \\originy:  {X:0>4} ({})
-                \\patch:    {X:0>4} ({})
-                \\stepdir:  {X:0>4} ({})
-                \\colormap: {X:0>4} ({})
-                \\
-                , .{
-                    @as(u16, @bitCast(mpatch.originx)), mpatch.originx,
-                    @as(u16, @bitCast(mpatch.originy)), mpatch.originy,
-                    @as(u16, @bitCast(mpatch.patch)), mpatch.patch,
-                    @as(u16, @bitCast(mpatch.stepdir)), mpatch.stepdir,
-                    @as(u16, @bitCast(mpatch.colormap)), mpatch.colormap,
-                });
-
-                patch.originx = force_endianness(mpatch.originx);
-                patch.originy = force_endianness(mpatch.originy);
-                patch.patch = @intCast(patchlookup[@intCast(force_endianness(mpatch.patch))]);
-
-                if (patch.patch == -1) {
-                    std.debug.print("R_InitTextures: Missing patch in texture {s}", .{texture.name});
-                    @panic("R_InitTextures: Missing patch in texture");
-                }
-
-            }
-        }
-
-        texturecolumnlump[i] = @as([*]i16, @ptrCast(@alignCast(z.zone.malloc(texture.width*2, .static, null))))[0..@intCast(texture.width*2)];
-        texturecolumnofs[i] = @as([*]u16, @ptrCast(@alignCast(z.zone.malloc(texture.width*2, .static, null))))[0..@intCast(texture.width*2)];
-
-        var j: usize = 1;
-        while (j * 2 <= texture.width) j <<= 1;
-
-        texturewidthmask[i] = @intCast(j - 1);
-        textureheight[i] = std.math.shlExact(i32, texture.height, FRACBITS) catch unreachable;
-
-        total_width += texture.width;
-        directory = directory[1..];
-    }
-
-    z.zone.free(@ptrCast(maptex1.ptr));
-    if (maptex2 != null) z.zone.free(@ptrCast(maptex2.?.ptr));
-
-    // Precalculate whatever possible.
-    for (0..@intCast(num_textures)) |i| {
-        generate_lookup(@intCast(i));
-    }
-
-    // Create translation table for global animation.
-    texture_translation = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc((num_textures+1)*4, .static, null))))[0..@intCast((num_textures+1)*4)];
-
-    for (0..@intCast(num_textures)) |i| {
-        texture_translation[i] = @intCast(i);
-    }
-
-    maxoff = undefined;
+    @panic("Reached end");
 }
 
 // Implementation of:
@@ -270,7 +107,7 @@ fn init_flats() void {
     numflats = lastflat - firstflat + 1;
 
     // Create translation table for global animation.
-    flat_translation = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc((numflats+1)*4, .static, null))))[0..@intCast((numflats+1)*4)];
+    flat_translation = z.zone.malloc(i32, (numflats+1)*4, .static, null);
 
     for (0..@intCast(numflats)) |i| {
         flat_translation[i] = @intCast(i);
@@ -286,9 +123,9 @@ fn init_sprite_lumps() void {
     lastspritelump = w.wad.get_num_for_name("S_END") - 1;
     numspritelumps = lastspritelump - firstspritelump + 1;
 
-    spritewidth = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(numspritelumps * @sizeOf(i32), .static, null))))[0..@intCast(numspritelumps * @sizeOf(i32))];
-    spriteoffset = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(numspritelumps * @sizeOf(i32), .static, null))))[0..@intCast(numspritelumps * @sizeOf(i32))];
-    spritetopoffset = @as([*]i32, @ptrCast(@alignCast(z.zone.malloc(numspritelumps * @sizeOf(i32), .static, null))))[0..@intCast(numspritelumps * @sizeOf(i32))];
+    spritewidth = z.zone.malloc(i32, numspritelumps * @sizeOf(i32), .static, null);
+    spriteoffset = z.zone.malloc(i32, numspritelumps * @sizeOf(i32), .static, null);
+    spritetopoffset = z.zone.malloc(i32, numspritelumps * @sizeOf(i32), .static, null);
 
     for (0..@intCast(numspritelumps)) |i| {
         if ((i & @as(usize, 63)) == 0) std.debug.print(".", .{});
@@ -311,7 +148,7 @@ fn init_colormaps() void {
     const lump = w.wad.get_num_for_name("COLORMAP");
     const length = w.wad.lump_length(lump) + 255;
 
-    colormaps = @as([*]u8, @ptrCast(@alignCast(z.zone.malloc(length, .static, null))))[0..@intCast(length)];
+    colormaps = z.zone.malloc(u8, length, .static, null);
     colormaps.ptr = @ptrFromInt((@intFromPtr(colormaps.ptr) + 255) & ~@as(usize, 0xFF));
     w.wad.read_lump(lump, colormaps);
 }

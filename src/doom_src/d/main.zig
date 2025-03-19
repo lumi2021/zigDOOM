@@ -79,7 +79,8 @@ pub fn dMain() !void {
 	    \\===========================================================================
         \\
         , .{});
-        _ = try std.io.getStdIn().reader().readByte();
+        
+        //_ = try std.io.getStdIn().reader().readByte();
     }
 
     switch (game_state.gamemode) {
