@@ -11,7 +11,7 @@ const FileLumpList = std.ArrayList(FileLump);
 
 var lumpinfo: []LumpInfo = undefined;
 
-var lumpCache: []?[]u8 = undefined;
+var lumpCache: []?[*]u8 = undefined;
 
 const FileLump = extern struct {
     filepos: i32,
@@ -42,7 +42,7 @@ pub fn init_wads() !void {
             catch |err| std.debug.print("Error: {s}\n", .{@errorName(err)});
     }
 
-    lumpCache = try alloc.alloc(?[]u8, lumpinfo.len);
+    lumpCache = try alloc.alloc(?[*]u8, lumpinfo.len);
     for (0.., lumpCache) |i, _| lumpCache[i] = null;
 
     root.print_dbg("{} lumps loaded!\n", .{lumpinfo.len});
@@ -147,10 +147,10 @@ fn extract_file_base(path: []u8, dest: []u8) void {
 }
 
 
-pub fn cache_lump_name(name: []const u8, tag: enums.ZoneTags) []u8 {
+pub fn cache_lump_name(name: []const u8, tag: enums.ZoneTags) [*]u8 {
     return cache_lump_num(get_num_for_name(name), tag);
 }
-pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
+pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) [*]u8 {
     const u_idx: usize = @intCast(@as(u32, @bitCast(index)));
 
     if (index > lumpinfo.len) @panic("index out of bounds!");
@@ -158,7 +158,7 @@ pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
     if (lumpCache[u_idx] == null) {
         const size = lumpinfo[u_idx].size;
 
-        const buf = dstc.zone.malloc(u8, size, tag, @ptrCast(&lumpCache[u_idx]));
+        const buf = dstc.zone.malloc_buf(u8, size, tag, @ptrCast(&lumpCache[u_idx]));
         lumpCache[u_idx] = buf;
 
         read_lump(index, buf);
@@ -167,7 +167,7 @@ pub fn cache_lump_num(index: i32, tag: enums.ZoneTags) []u8 {
     return lumpCache[u_idx].?;
 }
 
-pub fn read_lump(index: i32, dest: []u8) void {
+pub fn read_lump(index: i32, dest: [*]u8) void {
     const u_idx: usize = @intCast(@as(u32, @bitCast(index)));
 
     if (index > lumpinfo.len) @panic("index out of bounds!");
@@ -177,7 +177,7 @@ pub fn read_lump(index: i32, dest: []u8) void {
     if (l.handle) |handle| {
 
         handle.seekTo(@intCast(l.position)) catch unreachable;
-        _ = handle.readAll(dest) catch unreachable;
+        _ = handle.readAll(dest[0.. @intCast(l.size)]) catch unreachable;
 
     } else { @panic("Cannot access data source file!"); }
 }

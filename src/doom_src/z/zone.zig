@@ -61,10 +61,10 @@ pub fn InitZoneBase() []u8 {
 
 // Implementation of
 //    https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/z_zone.c#L184
-pub fn malloc(comptime T: type, size: i32, tag: enums.ZoneTags, user: ?**anyopaque) []T {
+pub fn malloc(size: anytype, tag: enums.ZoneTags, user: ?**anyopaque) [*]u8 {
     // fix to the weird zig alignment shit
-    const alig: i32 = @intCast(@alignOf(Memblock) - 1);
-    const _size: i32 = ((size + alig) & ~alig)
+    const alig: i32 = @alignOf(Memblock) - 1;
+    const _size: i32 = ((@as(i32, @intCast(size)) + alig) & ~alig)
     + @sizeOf(Memblock); // account for size of block header
 
     //root.print_log("allocating {} bytes ({} requested)...\n", .{_size, size});
@@ -144,14 +144,27 @@ pub fn malloc(comptime T: type, size: i32, tag: enums.ZoneTags, user: ?**anyopaq
 
     base.id = zoneid;
 
-    const ptr: [*]T = @ptrFromInt(@intFromPtr(base) + @sizeOf(Memblock));
-    const tsize = @sizeOf(T);
-    return ptr[0 .. @intCast(@divExact(size, tsize))];
+    return @ptrFromInt(@intFromPtr(base) + @sizeOf(Memblock));
+}
+// some wrappers because for god's sake C memory management is so poor
+pub inline fn malloc_buf(comptime T: type, len: anytype, tag: enums.ZoneTags, user: ?**anyopaque) [*]T {
+    const size_in_bytes = len * @sizeOf(T);
+    const buf = malloc(size_in_bytes, tag, user);
+    return @ptrCast(@alignCast(buf));
+}
+pub inline fn malloc_slice(comptime T: type, len: anytype, tag: enums.ZoneTags, user: ?**anyopaque) []T {
+    return malloc_buf(T, len, tag, user)[0..@intCast(len)];
+}
+pub inline fn malloc_obj(comptime T: type, tag: enums.ZoneTags, user: ?**anyopaque) *T {
+    const buf = malloc(@sizeOf(T), tag, user);
+    return @ptrCast(@alignCast(buf));
 }
 
 // Implementation of
 //    https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/z_zone.c#L122
-pub fn free(ptr: *anyopaque) void {
+pub fn free(ptr: anytype) void {
+    if (@typeInfo(@TypeOf(ptr)) != .pointer) @compileError("value must be a pointer!");
+
     const block: *Memblock = @ptrFromInt(@intFromPtr(ptr) - @sizeOf(Memblock));
     if (block.id != zoneid) @panic("Freed a block without ZONEID");
     free_block(block);
