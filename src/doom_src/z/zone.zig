@@ -67,7 +67,7 @@ pub fn malloc(size: anytype, tag: enums.ZoneTags, user: ?**anyopaque) [*]u8 {
     const _size: i32 = ((@as(i32, @intCast(size)) + alig) & ~alig)
     + @sizeOf(Memblock); // account for size of block header
 
-    //root.print_log("allocating {} bytes ({} requested)...\n", .{_size, size});
+    root.print_log("allocating {} bytes ({} requested)...\n", .{_size, size});
 
     // scan through the block list,
     // looking for the first free block

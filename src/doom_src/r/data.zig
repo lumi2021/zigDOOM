@@ -125,7 +125,7 @@ fn init_textures() void {
     defer root.allocator.free(patchlookup);
 
     for (0..@intCast(nummappatches)) |i| {
-        @memcpy(name[0..8], names[4..12]);
+        @memcpy(name[0..8], names[(4 + i * 8).. (12 + i * 8)]);
         patchlookup[i] = w.wad.check_num_for_name(&name);
     }
     z.zone.free(names);
@@ -197,6 +197,7 @@ fn init_textures() void {
         const mtexture: *align(1) MapTexture = @ptrCast(&maptex[offset]);
 
         const texture_size = @sizeOf(Texture) + @sizeOf(TexPatch) * fend(mtexture.patchcount) - 1;
+        std.debug.print("{}\n", .{mtexture.patchcount});
         var texture: *Texture = @ptrCast(@alignCast(z.zone.malloc(texture_size, .static, null)));
         textures[i] = texture;
 
