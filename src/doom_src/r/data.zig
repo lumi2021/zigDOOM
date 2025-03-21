@@ -79,14 +79,14 @@ var texture_translation: [*]i32 = undefined;
 var total_width: i32 = 0;
 
 // flats
-var firstflat: i32 = undefined;
-var lastflat: i32 = undefined;
-var numflats: i32 = undefined;
+pub var firstflat: i32 = undefined;
+pub var lastflat: i32 = undefined;
+pub var numflats: i32 = undefined;
 
 // Sprites
-var firstspritelump: i32 = undefined;
-var lastspritelump: i32 = undefined;
-var numspritelumps: i32 = undefined;
+pub var firstspritelump: i32 = undefined;
+pub var lastspritelump: i32 = undefined;
+pub var numspritelumps: i32 = undefined;
 
 var spritewidth: []i32 = undefined;
 var spriteoffset: []i32 = undefined;
@@ -388,6 +388,21 @@ pub fn texture_num_for_name(name: [:0]const u8) i32 {
     }
     return i;
 }
+
+// Implementation of:
+//     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L672
+// R_FlatNumForName
+// Retrieval, get a flat number for a flat name.
+pub fn flat_num_for_name(name: [:0]const u8) i32 {
+    const i = w.wad.check_num_for_name(name);
+
+    if (i == -1) {
+        std.debug.print("R_FlatNumForName: {s} not found\n", .{name});
+        @panic("R_FlatNumForName: not found");
+    }
+    return i - firstflat;
+}
+
 
 // Implementation of:
 //     https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/r_data.c#L718

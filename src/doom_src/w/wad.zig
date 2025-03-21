@@ -9,7 +9,7 @@ const alloc = root.allocator;
 
 const FileLumpList = std.ArrayList(FileLump);
 
-var lumpinfo: []LumpInfo = undefined;
+pub var lumpinfo: []LumpInfo = undefined;
 
 var lumpCache: []?[*]u8 = undefined;
 
