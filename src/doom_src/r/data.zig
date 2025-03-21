@@ -57,7 +57,7 @@ const Texture = struct {
     // All the patches[patchcount]
     //  are drawn back to front into the cached texture.
     patchcount: i16,
-    patches: TexPatch
+    patches: [*]TexPatch
 };
 const Patch = r.defs.Patch;
 
@@ -196,9 +196,8 @@ fn init_textures() void {
 
         const mtexture: *align(1) MapTexture = @ptrCast(&maptex[offset]);
 
-        const texture_size = @sizeOf(Texture) + @sizeOf(TexPatch) * fend(mtexture.patchcount) - 1;
-        std.debug.print("{}\n", .{mtexture.patchcount});
-        var texture: *Texture = @ptrCast(@alignCast(z.zone.malloc(texture_size, .static, null)));
+        var texture: *Texture = z.zone.malloc_obj(Texture, .static, null);
+        texture.patches = z.zone.malloc_buf(TexPatch, fend(mtexture.patchcount), .static, null);
         textures[i] = texture;
 
         texture.width = fend(mtexture.width);
@@ -206,14 +205,12 @@ fn init_textures() void {
         texture.patchcount = fend(mtexture.patchcount);
 
         texture.name = std.mem.sliceTo(&mtexture.name, 0);
-        
+
         var mpatch: [*]align(1) MapPatch = @ptrCast(&mtexture.patches);
-        var patch: [*]align(1) TexPatch = @ptrCast(&texture.patches);
+        var patch: [*]align(1) TexPatch = texture.patches;
 
         var j: usize = 0;
         while (j < texture.patchcount) : ({ j += 1; mpatch = mpatch[1..]; patch = patch[1..]; }) {
-
-            std.debug.print("{}/{}: {} {} {}\n", .{j+1, texture.patchcount, mpatch[0].originx, mpatch[0].originy, mpatch[0].patch});
 
             patch[0].originx = fend(mpatch[0].originx);
             patch[0].originy = fend(mpatch[0].originy);
@@ -327,13 +324,11 @@ fn generate_lookup(texnum: i32) void {
     defer root.allocator.free(patchcount);
 
     @memset(patchcount, 0);
-    const patch_l: [*]MapPatch = @ptrCast(@alignCast(&texture.patches));
 
     for (0..@intCast(texture.patchcount)) |i| {
-        const patch = patch_l[i];
+        const patch = texture.patches[i];
 
-        const patch_patch: i32 = @bitCast(@as(u32, @intCast(@as(u16, @bitCast(patch.patch)))));
-        const realpatch: *Patch = @ptrCast(@alignCast(w.wad.cache_lump_num(patch_patch, .cache)));
+        const realpatch: *Patch = @ptrCast(@alignCast(w.wad.cache_lump_num(patch.patch, .cache)));
         
         const x1 = patch.originx;
         var x2 = x1 + realpatch.width;
@@ -351,7 +346,7 @@ fn generate_lookup(texnum: i32) void {
             const realpatch_columnoffs = @as([*]u32, @ptrCast(&realpatch.columnoffs));
 
             patchcount[@intCast(x)] += 1;
-            collump[@intCast(x)] = patch.patch;
+            collump[@intCast(x)] = @intCast(patch.patch);
             colofs[@intCast(x)] = @intCast(realpatch_columnoffs[@intCast(x-x1)] + 3);
         }
 

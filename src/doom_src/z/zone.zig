@@ -10,12 +10,12 @@ const minfragment = 64;
 const mb_used: usize = 6;
 var mainzone: *Memzone = undefined;
 
-pub const Memzone = struct {
+pub const Memzone = extern struct {
     size: i32,
     blocklist: Memblock,
     rover: *Memblock
 };
-pub const Memblock = struct { 
+pub const Memblock = extern struct { 
     size: i32,
     user: ?**anyopaque,
     tag: enums.ZoneTags,
@@ -67,7 +67,7 @@ pub fn malloc(size: anytype, tag: enums.ZoneTags, user: ?**anyopaque) [*]u8 {
     const _size: i32 = ((@as(i32, @intCast(size)) + alig) & ~alig)
     + @sizeOf(Memblock); // account for size of block header
 
-    root.print_log("allocating {} bytes ({} requested)...\n", .{_size, size});
+    //root.print_log("allocating {} bytes ({} requested)...\n", .{_size, size});
 
     // scan through the block list,
     // looking for the first free block
