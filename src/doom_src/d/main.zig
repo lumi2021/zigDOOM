@@ -120,7 +120,7 @@ pub fn dMain() !void {
     dsrc.p.setup.init();
 
     root.print_log("I_Init: Setting up machine state.\n", .{});
-    //I_Init ();
+    dsrc.i.system.init();
 
     root.print_log("D_CheckNetGame: Checking network game status.\n", .{});
     //D_CheckNetGame ();
