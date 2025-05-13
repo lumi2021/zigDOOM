@@ -9,7 +9,7 @@ const game_state = dsrc.gamestate;
 const utils = root.utils;
 const alloc = root.allocator;
 
-// https://github.com/id-Software/DOOM/blob/a77dfb96cb91780ca334d0d4cfd86957558007e0/linuxdoom-1.10/d_main.c#L796
+// https://github.com/id-Software/DOOM/blob/master/linuxdoom-1.10/d_main.c#L796
 // part of this function is ignored due of too much effort for unecessary things :p
 pub fn dMain() !void {
 
@@ -123,7 +123,7 @@ pub fn dMain() !void {
     dsrc.i.system.init();
 
     root.print_log("D_CheckNetGame: Checking network game status.\n", .{});
-    //D_CheckNetGame ();
+    dsrc.d.net.check_net_game();
 
     root.print_log("S_Init: Setting up sound.\n", .{});
     //S_Init (snd_SfxVolume /* *8 */, snd_MusicVolume /* *8*/ );
