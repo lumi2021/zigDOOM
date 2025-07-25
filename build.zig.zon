@@ -1,0 +1,13 @@
+.{
+    .name = .zigDOOM,
+    .version = "1.0.0",
+    .fingerprint = 0xc1a1cea429cf124d,
+    .dependencies = .{
+
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
