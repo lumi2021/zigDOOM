@@ -11,7 +11,7 @@ pub var screens: [5]*[screen_width * screen_height]u8 = undefined;
 pub var dirtybox: [4]isize = undefined;
 
 // Now where did these came from?
-const gammatable: [5][256]u8 = .{
+pub const gammatable: [5][256]u8 = .{
     .{
         1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
         17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
@@ -114,6 +114,7 @@ pub fn init() !void {
     inline for (0..4) |i| {
         screens[i] = screens_base[(i * screensize) .. ((i+1) * screensize)];
     }
+    @memset(screens_base, 0);
 
 }
 
