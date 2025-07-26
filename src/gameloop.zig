@@ -16,11 +16,14 @@ pub fn gameloop() !noreturn {
 
         if (singletics) {
             system.start_tic();
+            system.process_events();
 
         } else {
 
         }
 
+
+        system.display();
     }
 
     std.process.exit(0);    

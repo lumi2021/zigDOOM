@@ -1,13 +1,14 @@
 const std = @import("std");
 const root = @import("root");
 const zone = root.zone;
+const Patch = root.rendering.data.Patch;
 
 pub const screen_width: u32 = 640;
 pub const screen_height: u32 = 400;
 
 pub var screens_base: []u8 = undefined;
 pub var screens: [5]*[screen_width * screen_height]u8 = undefined;
-
+pub var dirtybox: [4]isize = undefined;
 
 // Now where did these came from?
 const gammatable: [5][256]u8 = .{
@@ -99,6 +100,12 @@ const gammatable: [5][256]u8 = .{
     }
 };
 
+
+const Column = extern struct {
+    topdelta: u8,
+    length: u8,
+};
+
 pub fn init() !void {
 
      const screensize = screen_width * screen_height;
@@ -106,6 +113,48 @@ pub fn init() !void {
     screens_base = try zone.get(.static).alloc(u8, screen_width * screen_height * 4);
     inline for (0..4) |i| {
         screens[i] = screens_base[(i * screensize) .. ((i+1) * screensize)];
+    }
+
+}
+
+
+pub fn mark_rect(x: isize, y: isize, width: isize, height: isize) void {
+    root.misc.bbox.add_to_box(&dirtybox, x, y);
+    root.misc.bbox.add_to_box(&dirtybox, x+width-1, y+height-1);
+}
+
+pub fn draw_patch(base_x: usize, base_y: usize, scrn: usize, patch: *align(1) Patch) void {
+
+    var x: isize = @bitCast(base_x);
+    var y: isize = @bitCast(base_y);
+
+    x -= patch.leftoffset;
+    y -= patch.topoffset;
+
+    if (scrn == 0) mark_rect(x, y, patch.width, patch.height);
+
+    var col: usize = 0;
+    var pidx: usize = @bitCast(x + y * screen_width);
+
+    const w = patch.width;
+
+    while (col < w) : ({ x+=1; col+=1; pidx+=1; }) {
+        var column: *Column = @ptrFromInt(@intFromPtr(patch) + @as(usize, @intCast(@as([*]i32, @ptrCast(@alignCast(&patch.columnoffs)))[col])));
+
+        while (column.topdelta != 0xff) {
+
+            var source: [*]u8 = @ptrFromInt(@intFromPtr(column)+3);
+            var dest: [*]u8 = @ptrFromInt(@intFromPtr(screens[scrn]) + pidx + column.topdelta * screen_width);
+            var count = column.length;
+
+            while (count != 0) : (count -= 1) {
+                dest[0] = source[0];
+                source = source[1..];
+                dest = dest[screen_width..];
+            }
+
+            column = @ptrFromInt(@intFromPtr(column) + column.length + 4);
+        }
     }
 
 }

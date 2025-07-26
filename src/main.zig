@@ -14,13 +14,32 @@ pub const resources = @import("resources/resources.zig");
 pub const rendering = @import("rendering/rendering.zig");
 pub const play = @import("play/play.zig");
 pub const interface = @import("interface/interface.zig");
+pub const menu = @import("menus/menu.zig");
 pub const system = @import("system/system.zig");
 pub const gameloop = @import("gameloop.zig");
+pub const misc = @import("misc/misc.zig");
 
 pub const zone = @import("zone.zig");
 
 pub const utils = .{
     .args_handler = @import("utils/args_handler.zig"),
+};
+
+const EventType = enum {
+    keyup,
+    keydown,
+    mouse,
+};
+pub const Event = union(EventType) {
+    keyup: KeyboardEvent,
+    keydown: KeyboardEvent,
+    mouse: struct { f32, f32 },
+};
+pub const KeyboardEvent = enum(usize) {
+    W, A, S, D,
+    Up, Down, Left, Right,
+
+    Esc,
 };
 
 
@@ -69,7 +88,7 @@ pub fn main() !void {
 
     // Initialize systems
     std.log.info("V_Init: allocate screens.\n", .{});
-    try @import("video/video.zig").init();
+    try rendering.video.init();
 
     // This don't do shit as we are using zig's memory allocator
     std.log.info("Z_Init: Init zone memory allocation daemon. \n", .{});
@@ -122,7 +141,7 @@ pub fn main() !void {
 
     // Initialize more systems bruh
     std.log.info("M_Init: Init miscellaneous info.\n", .{});
-    try @import("menus/menu.zig").init();
+    try menu.init();
 
     std.log.info("R_Init: Init DOOM refresh daemon - ", .{});
     try rendering.init();
@@ -206,3 +225,4 @@ fn logFn(
 
     }
 }
+

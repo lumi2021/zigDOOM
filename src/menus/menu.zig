@@ -1,8 +1,10 @@
 const root = @import("root");
 const game_state = root.game_state;
+const Event = root.Event;
 
 const menu_data = @import("menu_data.zig");
 
+var menu_active: bool = false;
 var currentMenu: *MenuScreen = undefined;
 var is_menu_active = false;
 var item_on: i16 = 0;
@@ -95,4 +97,18 @@ pub fn choose_episode(episode: i32) void {
 }
 pub fn choose_skill(level: i32) void {
     _ = level;
+}
+
+pub fn event_responder(e: Event) bool {
+
+    if (e != .keydown) return false;
+
+    if (!menu_active) {
+        if (e.keydown == .Esc) {
+
+        }
+    }
+
+    return false;
+    
 }

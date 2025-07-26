@@ -3,6 +3,7 @@ const root = @import("root");
 
 pub const data = @import("data.zig");
 pub const things = @import("things.zig");
+pub const video = @import("video.zig");
 
 const wad = root.resources.wad;
 

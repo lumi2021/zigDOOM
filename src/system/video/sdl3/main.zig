@@ -15,7 +15,7 @@ pub fn init_graphics() !void {
 
     win = c.SDL_CreateWindow(
         "zigDOOM",
-        960, 540,
+        640, 400,
         c.SDL_WINDOW_RESIZABLE
     ) orelse @panic("SDL3 failed to create window!");
 
@@ -25,21 +25,28 @@ pub fn init_graphics() !void {
 }
 
 pub fn start_tic() void {
-    var event: c.SDL_Event = undefined;
+    // Nothing to do with SDL
+}
 
-    while (c.SDL_PollEvent(&event)) {
-        switch (event.type) {
-            c.SDL_EVENT_QUIT => root.gameloop.running = false,
+pub fn translate_events(event: *?root.Event) bool {
 
-            c.SDL_EVENT_MOUSE_MOTION => {
-                std.log.info("Mouse move: x={d}, y={d}, rel_x={d}, rel_y={d}\n",
-                    .{ event.motion.x, event.motion.y,
-                    event.motion.xrel, event.motion.yrel });
-            },
-            else => {}
-        }
+    var sdle: c.SDL_Event = undefined;
+    const res = c.SDL_PollEvent(&sdle);
+
+    switch (sdle.type) {
+        c.SDL_EVENT_QUIT => root.gameloop.running = false,
+
+        c.SDL_EVENT_MOUSE_MOTION => {
+            event.* = .{ .mouse = .{ sdle.motion.xrel, sdle.motion.yrel }};
+        },
+
+        
+        else => {}
     }
+    
+    return res;
+}
 
+pub fn update_window() void {
     _ = c.SDL_RenderPresent(renderer);
-
 }
