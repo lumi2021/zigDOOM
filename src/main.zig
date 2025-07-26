@@ -13,6 +13,9 @@ pub const info = @import("info.zig");
 pub const resources = @import("resources/resources.zig");
 pub const rendering = @import("rendering/rendering.zig");
 pub const play = @import("play/play.zig");
+pub const interface = @import("interface/interface.zig");
+pub const system = @import("system/system.zig");
+pub const gameloop = @import("gameloop.zig");
 
 pub const zone = @import("zone.zig");
 
@@ -137,14 +140,14 @@ pub fn main() !void {
     // TODO ignored for now
 
     std.log.info("HU_Init: Setting up heads up display.\n", .{});
-    
+    try interface.init();
 
     std.log.info("ST_Init: Init status bar.\n", .{});
-    
+    try interface.status_bar.init();
 
-    // to make sure nothing goes wrong
-    std.log.info("dmain.zig ends here!\n", .{});
-    zone.deinit();
+    
+    try gameloop.gameloop();
+    unreachable;
 
 }
 

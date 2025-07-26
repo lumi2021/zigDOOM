@@ -11,6 +11,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    exe.linkLibC();
+    exe.addSystemIncludePath(b.path("SDL3"));
+    exe.linkSystemLibrary("SDL3");
+
     const install_exe = b.addInstallArtifact(exe, .{ .dest_dir = .{ .override = .{ .custom = "" } } });
     const install_wad = b.addInstallFile(b.path("DOOM.WAD"), "DOOM.WAD");
 
