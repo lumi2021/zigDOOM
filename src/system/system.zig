@@ -1,5 +1,6 @@
 const std = @import("std");
 const root = @import("root");
+const game = root.game;
 const video = root.rendering.video;
 const wad = root.resources.wad;
 
@@ -30,22 +31,12 @@ pub fn set_pallete(pallete: []u8) void {
 
 pub fn display() void {
 
-    video.draw_patch(10, 10, 0,
-    std.mem.bytesAsValue(root.rendering.data.Patch, wad.cache_lump_name("M_PAUSE", .static)));
-
-    video.draw_patch(80, 10, 0,
-    std.mem.bytesAsValue(root.rendering.data.Patch, wad.cache_lump_name("M_DOOM", .static)));
-
-    video.draw_patch(10, 30, 0,
-    std.mem.bytesAsValue(root.rendering.data.Patch, wad.cache_lump_name("STFST01", .static)));
-
-    video.draw_patch(40, 30, 0,
-    std.mem.bytesAsValue(root.rendering.data.Patch, wad.cache_lump_name("STFEVL0", .static)));
-
-    video.draw_patch(0, 100, 0,
-    std.mem.bytesAsValue(root.rendering.data.Patch, wad.cache_lump_name("STBAR", .static)));
+    switch (game.gamestate) {
+        .demoscreen => root.gameloop.pageDrawer(),
+        else => {}
+    }
 
     set_pallete(wad.cache_lump_name("PLAYPAL", .cache));
-
     system_video.update_window();
+
 }

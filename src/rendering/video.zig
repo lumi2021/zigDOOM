@@ -145,11 +145,15 @@ pub fn draw_patch(base_x: usize, base_y: usize, scrn: usize, patch: *align(1) Pa
         while (column.topdelta != 0xff) {
 
             var source: [*]u8 = @ptrFromInt(@intFromPtr(column)+3);
-            var dest: [*]u8 = @ptrFromInt(@intFromPtr(screens[scrn]) + pidx + column.topdelta * screen_width);
+            var dest: [*]u8 = @ptrFromInt(@intFromPtr(screens[scrn]) + pidx*2 + column.topdelta * screen_width * 2);
             var count = column.length;
 
             while (count != 0) : (count -= 1) {
                 dest[0] = source[0];
+                dest[1] = source[0];
+                dest = dest[screen_width..];
+                dest[0] = source[0];
+                dest[1] = source[0];
                 source = source[1..];
                 dest = dest[screen_width..];
             }

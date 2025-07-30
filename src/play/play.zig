@@ -3,6 +3,8 @@ const spec = @import("specs.zig");
 const things = @import("root").rendering.things;
 const info = @import("root").info;
 
+pub const player = @import("player.zig");
+
 pub fn init() !void {
     try switches.init_switch_list();
     try spec.init_pic_anims();

@@ -18,6 +18,7 @@ pub const menu = @import("menus/menu.zig");
 pub const system = @import("system/system.zig");
 pub const gameloop = @import("gameloop.zig");
 pub const misc = @import("misc/misc.zig");
+pub const game = @import("game.zig");
 
 pub const zone = @import("zone.zig");
 
@@ -164,7 +165,13 @@ pub fn main() !void {
     std.log.info("ST_Init: Init status bar.\n", .{});
     try interface.status_bar.init();
 
-    
+    //if (game.gameaction != .load_game) {
+    //    if (autostart) // TODO
+    //} else 
+    {
+        gameloop.startTitle();
+    }
+
     try gameloop.gameloop();
     unreachable;
 
